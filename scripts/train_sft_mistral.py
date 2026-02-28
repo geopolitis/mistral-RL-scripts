@@ -383,8 +383,11 @@ def load_model_and_tokenizer(args: argparse.Namespace) -> tuple[Any, AutoTokeniz
             bnb_4bit_use_double_quant=True,
             bnb_4bit_compute_dtype=target_dtype,
         )
+        print("[setup] QLoRA mode active: loading base model in 4-bit (nf4).")
     elif args.use_4bit and is_fp8:
-        print("[setup] model has FP8 quantization; skipping --use-4bit.")
+        print("[setup] model has FP8 quantization; skipping --use-4bit (fallback to LoRA on dequantized weights).")
+    else:
+        print("[setup] LoRA mode active: base model loaded without 4-bit quantization.")
 
     print(f"[setup] loading model {args.model_name}...")
     model_cls = getattr(transformers, model_config.architectures[0])

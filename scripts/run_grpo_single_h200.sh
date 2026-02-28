@@ -36,7 +36,7 @@ WANDB_ENTITY="${WANDB_ENTITY:-}"
 WANDB_GROUP="${WANDB_GROUP:-ministral-grpo}"
 WANDB_JOB_TYPE="${WANDB_JOB_TYPE:-train}"
 WANDB_TAGS="${WANDB_TAGS:-grpo,ministral,single-h200}"
-USE_4BIT="${USE_4BIT:-0}"
+USE_4BIT="${USE_4BIT:-1}"
 
 ensure_wandb_installed() {
   if uv run --python "$PYTHON_BIN" -c "import wandb" >/dev/null 2>&1; then
