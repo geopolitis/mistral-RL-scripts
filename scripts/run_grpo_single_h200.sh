@@ -27,7 +27,7 @@ fi
 PYTHON_BIN="$VENV_PATH/bin/python"
 
 MODEL_NAME="${MODEL_NAME:-mistralai/Ministral-3-3B-Instruct-2512-BF16}"
-DATA_DIR="${DATA_DIR:-datasets}"
+DATA_DIR="${DATA_DIR:-datasets/unique_prompts.json}"
 OUTPUT_DIR="${OUTPUT_DIR:-outputs/mistral-grpo}"
 RUN_NAME="${RUN_NAME:-ministral-grpo-single-h200}"
 SEED="${SEED:-42}"

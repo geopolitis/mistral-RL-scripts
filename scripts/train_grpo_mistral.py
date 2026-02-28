@@ -90,7 +90,12 @@ class WandbStepLoggerCallback(TrainerCallback):
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="GRPO fine-tuning for Mistral on a single H200")
-    parser.add_argument("--data-dir", type=str, default="datasets", help="Directory with *.json files")
+    parser.add_argument(
+        "--data-dir",
+        type=str,
+        default="datasets/unique_prompts.json",
+        help="Path to a JSON file or directory with *.json files",
+    )
     parser.add_argument("--model-name", type=str, default="mistralai/Ministral-3-3B-Instruct-2512-BF16")
     parser.add_argument("--output-dir", type=str, default="outputs/mistral-grpo")
     parser.add_argument("--max-samples", type=int, default=0, help="0 means use all samples")
@@ -141,9 +146,12 @@ def normalize_label(raw: Any) -> str:
 
 
 def load_examples(data_dir: str, max_samples: int, seed: int) -> list[Example]:
-    files = sorted(glob.glob(os.path.join(data_dir, "*.json")))
+    if os.path.isfile(data_dir):
+        files = [data_dir]
+    else:
+        files = sorted(glob.glob(os.path.join(data_dir, "*.json")))
     if not files:
-        raise FileNotFoundError(f"No JSON files found in {data_dir}")
+        raise FileNotFoundError(f"No JSON file(s) found in {data_dir}")
 
     rows: list[Example] = []
     for path in files:
