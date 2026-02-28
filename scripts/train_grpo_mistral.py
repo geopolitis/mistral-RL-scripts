@@ -27,7 +27,6 @@ from trl import GRPOConfig, GRPOTrainer
 
 
 REFUSAL_MARKERS = (
-    "i can",
     "i can't",
     "i cannot",
     "i won\u2019t",
@@ -93,7 +92,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--data-dir",
         type=str,
-        default="datasets/unique_prompts.json",
+        default="datasets/unique_prompts_balanced.json",
         help="Path to a JSON file or directory with *.json files",
     )
     parser.add_argument("--model-name", type=str, default="mistralai/Ministral-3-3B-Instruct-2512-BF16")
@@ -103,8 +102,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=42)
 
     parser.add_argument("--max-prompt-length", type=int, default=512)
-    parser.add_argument("--max-completion-length", type=int, default=192)
-    parser.add_argument("--num-generations", type=int, default=4)
+    parser.add_argument("--max-completion-length", type=int, default=96)
+    parser.add_argument("--num-generations", type=int, default=2)
 
     parser.add_argument("--learning-rate", type=float, default=5e-6)
     parser.add_argument("--weight-decay", type=float, default=0.01)
@@ -121,8 +120,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--use-4bit", action="store_true", help="Enable bitsandbytes 4-bit quantization")
     parser.add_argument("--bf16", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--logging-steps", type=int, default=10)
-    parser.add_argument("--save-steps", type=int, default=100)
-    parser.add_argument("--eval-steps", type=int, default=100)
+    parser.add_argument("--save-steps", type=int, default=500)
+    parser.add_argument("--eval-steps", type=int, default=500)
     parser.add_argument("--run-name", type=str, default="ministral-grpo-single-h200")
     parser.add_argument("--report-to", type=str, default="none", help="none | wandb | tensorboard")
     parser.add_argument("--wandb-project", type=str, default="", help="Optional W&B project name")
@@ -184,6 +183,26 @@ def split_dataset(rows: list[Example], train_split: float) -> tuple[Dataset, Dat
     train_ds = Dataset.from_list([{"prompt": r.prompt, "label": r.label} for r in train_rows])
     eval_ds = Dataset.from_list([{"prompt": r.prompt, "label": r.label} for r in eval_rows])
     return train_ds, eval_ds
+
+
+def truncate_prompt(prompt: str, tokenizer: AutoTokenizer, max_prompt_length: int) -> str:
+    encoded = tokenizer(
+        prompt,
+        add_special_tokens=False,
+        truncation=True,
+        max_length=max_prompt_length,
+        return_attention_mask=False,
+    )
+    return tokenizer.decode(encoded["input_ids"], skip_special_tokens=True).strip()
+
+
+def apply_prompt_truncation(dataset: Dataset, tokenizer: AutoTokenizer, max_prompt_length: int) -> Dataset:
+    def _map_fn(batch: dict[str, list[Any]]) -> dict[str, list[str]]:
+        return {
+            "prompt": [truncate_prompt(p, tokenizer, max_prompt_length) for p in batch["prompt"]],
+        }
+
+    return dataset.map(_map_fn, batched=True, desc=f"Truncating prompts to {max_prompt_length} tokens")
 
 
 def extract_completion_text(completion: Any) -> str:
@@ -275,6 +294,8 @@ def main() -> None:
     tokenizer = AutoTokenizer.from_pretrained(args.model_name, use_fast=True)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
+    train_ds = apply_prompt_truncation(train_ds, tokenizer, args.max_prompt_length)
+    eval_ds = apply_prompt_truncation(eval_ds, tokenizer, args.max_prompt_length)
 
     attn_impl = "flash_attention_2" if importlib.util.find_spec("flash_attn") is not None else "sdpa"
     if attn_impl != "flash_attention_2":

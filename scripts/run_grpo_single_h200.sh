@@ -27,7 +27,7 @@ fi
 PYTHON_BIN="$VENV_PATH/bin/python"
 
 MODEL_NAME="${MODEL_NAME:-mistralai/Ministral-3-3B-Instruct-2512-BF16}"
-DATA_DIR="${DATA_DIR:-datasets/unique_prompts.json}"
+DATA_DIR="${DATA_DIR:-datasets/unique_prompts_balanced.json}"
 OUTPUT_DIR="${OUTPUT_DIR:-outputs/mistral-grpo}"
 RUN_NAME="${RUN_NAME:-ministral-grpo-single-h200}"
 SEED="${SEED:-42}"
@@ -89,12 +89,12 @@ uv run --python "$PYTHON_BIN" scripts/train_grpo_mistral.py \
   --bf16 \
   --per-device-batch-size 1 \
   --gradient-accumulation-steps 16 \
-  --num-generations 8 \
-  --max-prompt-length 512 \
-  --max-completion-length 384 \
+  --num-generations 2 \
+  --max-prompt-length 384 \
+  --max-completion-length 96 \
   --learning-rate 2e-6 \
   --num-train-epochs 1 \
   --logging-steps 10 \
-  --save-steps 100 \
-  --eval-steps 100 \
+  --save-steps 500 \
+  --eval-steps 500 \
   "${EXTRA_FLAGS[@]}"

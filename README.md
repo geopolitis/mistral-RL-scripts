@@ -1,6 +1,6 @@
 # mistral-RL-scripts
 
-Single-GPU RL fine-tuning (GRPO) for Mistral using the deduplicated dataset `datasets/unique_prompts.json` by default (or any JSON dataset path).
+Single-GPU RL fine-tuning (GRPO) for Mistral using the deduplicated dataset `datasets/unique_prompts_balanced.json` by default (or any JSON dataset path).
 
 Dataset summary and quality notes: [DATASET_DETAILS.md](DATASET_DETAILS.md)
 
@@ -32,7 +32,7 @@ Example `.env`:
 
 ```bash
 MODEL_NAME=mistralai/Ministral-3-3B-Instruct-2512
-DATA_DIR=datasets/unique_prompts.json
+DATA_DIR=datasets/unique_prompts_balanced.json
 OUTPUT_DIR=outputs/mistral-grpo-exp1
 RUN_NAME=ministral-grpo-exp1
 SEED=42
@@ -67,7 +67,7 @@ python3 -m wandb login
 
 ```bash
 MODEL_NAME=mistralai/Ministral-3-3B-Instruct-2512 \
-DATA_DIR=datasets/unique_prompts.json \
+DATA_DIR=datasets/unique_prompts_balanced.json \
 OUTPUT_DIR=outputs/mistral-grpo-exp1 \
 RUN_NAME=ministral-grpo-exp1 \
 SEED=42 \
@@ -88,7 +88,7 @@ Set `USE_4BIT=1` only for base models that support bitsandbytes 4-bit loading.
 ```bash
 python3 scripts/train_grpo_mistral.py \
   --model-name mistralai/Ministral-3-3B-Instruct-2512 \
-  --data-dir datasets/unique_prompts.json \
+  --data-dir datasets/unique_prompts_balanced.json \
   --output-dir outputs/mistral-grpo \
   --report-to none \
   --bf16
@@ -99,7 +99,7 @@ python3 scripts/train_grpo_mistral.py \
 ```bash
 python3 scripts/train_grpo_mistral.py \
   --model-name mistralai/Ministral-3-3B-Instruct-2512 \
-  --data-dir datasets/unique_prompts.json \
+  --data-dir datasets/unique_prompts_balanced.json \
   --output-dir outputs/mistral-grpo \
   --run-name ministral-grpo-single-h200 \
   --seed 42 \
@@ -128,7 +128,7 @@ Example:
 python3 scripts/infer.py \
   --base-model mistralai/Ministral-3-3B-Instruct-2512 \
   --adapter-path outputs/mistral-grpo \
-  --data-dir datasets/unique_prompts.json \
+  --data-dir datasets/unique_prompts_balanced.json \
   --eval-split 0.02 \
   --max-samples 200 \
   --save-predictions outputs/mistral-grpo/validation.json
@@ -147,7 +147,7 @@ Validate base model only:
 ```bash
 python3 scripts/validate_vllm.py \
   --model mistralai/Ministral-3-3B-Instruct-2512 \
-  --data-dir datasets/unique_prompts.json \
+  --data-dir datasets/unique_prompts_balanced.json \
   --eval-split 0.02 \
   --max-samples 200 \
   --save-predictions outputs/mistral-grpo/validation-vllm-base.json
@@ -159,7 +159,7 @@ Validate fine-tuned LoRA adapter:
 python3 scripts/validate_vllm.py \
   --model mistralai/Ministral-3-3B-Instruct-2512 \
   --adapter-path outputs/mistral-grpo \
-  --data-dir datasets/unique_prompts.json \
+  --data-dir datasets/unique_prompts_balanced.json \
   --eval-split 0.02 \
   --max-samples 200 \
   --save-predictions outputs/mistral-grpo/validation-vllm-lora.json
