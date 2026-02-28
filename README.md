@@ -170,6 +170,7 @@ python3 scripts/validate_vllm.py \
 Set token once:
 
 ```bash
+pip install huggingface_hub
 export HF_TOKEN=your_hf_token
 ```
 
@@ -193,6 +194,16 @@ python3 scripts/upload_to_hf.py \
   --repo-type model \
   --private \
   --commit-message \"Upload SFT adapter checkpoint\"
+```
+
+Upload as public repo:
+
+```bash
+python3 scripts/upload_to_hf.py \
+  --local-path outputs/Ministral-3-3B-Instruct-sec \
+  --repo-id llmtrace/Ministral-3-3B-Instruct-sec \
+  --repo-type model \
+  --public
 ```
 
 ## Reward behavior
