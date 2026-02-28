@@ -85,6 +85,56 @@ python3 scripts/train_grpo_mistral.py \
   --num-generations 4
 ```
 
+## 6) Validation (infer.py)
+
+`scripts/infer.py` runs dataset-level validation for your trained adapter and prints:
+- malicious refusal rate
+- benign helpfulness rate
+- balanced score
+
+Example:
+
+```bash
+python3 scripts/infer.py \
+  --base-model mistralai/Ministral-3-14B-Instruct-2512 \
+  --adapter-path outputs/mistral-grpo \
+  --data-dir datasets \
+  --eval-split 0.02 \
+  --max-samples 200 \
+  --save-predictions outputs/mistral-grpo/validation.json
+```
+
+## 7) Validation with vLLM
+
+Install vLLM (separate from `requirements-rl.txt`):
+
+```bash
+pip install vllm
+```
+
+Validate base model only:
+
+```bash
+python3 scripts/validate_vllm.py \
+  --model mistralai/Ministral-3-14B-Instruct-2512 \
+  --data-dir datasets \
+  --eval-split 0.02 \
+  --max-samples 200 \
+  --save-predictions outputs/mistral-grpo/validation-vllm-base.json
+```
+
+Validate fine-tuned LoRA adapter:
+
+```bash
+python3 scripts/validate_vllm.py \
+  --model mistralai/Ministral-3-14B-Instruct-2512 \
+  --adapter-path outputs/mistral-grpo \
+  --data-dir datasets \
+  --eval-split 0.02 \
+  --max-samples 200 \
+  --save-predictions outputs/mistral-grpo/validation-vllm-lora.json
+```
+
 ## Reward behavior
 
 The reward function is label-conditioned:
