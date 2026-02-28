@@ -45,6 +45,7 @@ NUM_TRAIN_EPOCHS="${NUM_TRAIN_EPOCHS:-1}"
 INIT_ADAPTER="${INIT_ADAPTER:-}"
 REWARD_SHORT_WORD_THRESHOLD="${REWARD_SHORT_WORD_THRESHOLD:-20}"
 REWARD_SHORT_PENALTY="${REWARD_SHORT_PENALTY:-0.15}"
+WARMUP_STEPS="${WARMUP_STEPS:-0}"
 
 ensure_wandb_installed() {
   if uv run --python "$PYTHON_BIN" -c "import wandb" >/dev/null 2>&1; then
@@ -53,6 +54,50 @@ ensure_wandb_installed() {
 
   echo "[preflight] wandb not found in $VENV_PATH; installing with uv..."
   uv pip install --python "$PYTHON_BIN" --upgrade wandb
+}
+
+ensure_runtime_deps() {
+  if uv run --python "$PYTHON_BIN" - <<'PY'
+import accelerate
+import datasets
+import peft
+import torch
+import transformers
+import trl
+import wandb
+PY
+  then
+    return 0
+  fi
+
+  echo "[preflight] missing runtime deps in $VENV_PATH; installing requirements-rl.txt..."
+  uv pip install --python "$PYTHON_BIN" -r requirements-rl.txt
+}
+
+ensure_flash_attn_health() {
+  set +e
+  uv run --python "$PYTHON_BIN" - <<'PY'
+import importlib.util
+import sys
+
+if importlib.util.find_spec("flash_attn") is None:
+    raise SystemExit(0)
+
+try:
+    import flash_attn  # noqa: F401
+except Exception as exc:  # noqa: BLE001
+    print(exc)
+    raise SystemExit(2)
+
+raise SystemExit(1)
+PY
+  rc=$?
+  set -e
+
+  if [[ "$rc" == "2" ]]; then
+    echo "[preflight] flash-attn is installed but broken; uninstalling to force sdpa fallback..."
+    uv pip uninstall --python "$PYTHON_BIN" -y flash-attn >/dev/null 2>&1 || true
+  fi
 }
 
 ensure_wandb_login() {
@@ -74,8 +119,10 @@ PY
   exit 1
 }
 
+ensure_runtime_deps
 ensure_wandb_installed
 ensure_wandb_login
+ensure_flash_attn_health
 
 EXTRA_FLAGS=()
 if [[ "$USE_4BIT" == "1" ]]; then
@@ -105,6 +152,7 @@ uv run --python "$PYTHON_BIN" scripts/train_grpo_mistral.py \
   --max-completion-length "$MAX_COMPLETION_LENGTH" \
   --reward-short-word-threshold "$REWARD_SHORT_WORD_THRESHOLD" \
   --reward-short-penalty "$REWARD_SHORT_PENALTY" \
+  --warmup-steps "$WARMUP_STEPS" \
   --learning-rate "$LEARNING_RATE" \
   --num-train-epochs "$NUM_TRAIN_EPOCHS" \
   --logging-steps 10 \

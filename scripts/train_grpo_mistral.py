@@ -312,6 +312,18 @@ def _load_adapter_base_model_name(adapter_path: str) -> str:
     return str(cfg.get("base_model_name_or_path", "")).strip()
 
 
+def resolve_attention_backend() -> str:
+    """Prefer flash-attn when import works; otherwise fall back to SDPA."""
+    if importlib.util.find_spec("flash_attn") is None:
+        return "sdpa"
+    try:
+        __import__("flash_attn")
+        return "flash_attention_2"
+    except Exception as exc:  # noqa: BLE001
+        print(f"[setup] flash-attn present but unusable ({exc}); falling back to sdpa attention.")
+        return "sdpa"
+
+
 def main() -> None:
     args = parse_args()
     if args.num_generations < 2:
@@ -387,9 +399,9 @@ def main() -> None:
     train_ds = apply_prompt_truncation(train_ds, tokenizer, args.max_prompt_length)
     eval_ds = apply_prompt_truncation(eval_ds, tokenizer, args.max_prompt_length)
 
-    attn_impl = "flash_attention_2" if importlib.util.find_spec("flash_attn") is not None else "sdpa"
+    attn_impl = resolve_attention_backend()
     if attn_impl != "flash_attention_2":
-        print("[setup] flash-attn not found; falling back to sdpa attention.")
+        print("[setup] using sdpa attention backend.")
 
     target_dtype = torch.bfloat16 if args.bf16 else torch.float16
     model_config = AutoConfig.from_pretrained(model_source)
