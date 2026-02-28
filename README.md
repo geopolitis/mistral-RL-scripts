@@ -17,6 +17,25 @@ pip install -r requirements-rl.txt
 bash scripts/run_grpo_single_h100.sh
 ```
 
+The launcher auto-loads `.env` if present (or `ENV_FILE=path/to/file`).
+Priority order: explicit shell env > `.env` values > script defaults.
+
+Example `.env`:
+
+```bash
+MODEL_NAME=mistralai/Ministral-3-14B-Instruct-2512
+DATA_DIR=datasets
+OUTPUT_DIR=outputs/mistral-grpo-exp1
+RUN_NAME=ministral-grpo-exp1
+SEED=42
+WANDB_PROJECT=mistral-rl
+WANDB_ENTITY=geo-politis-n-a
+WANDB_GROUP=ministral-grpo
+WANDB_JOB_TYPE=train
+WANDB_TAGS=grpo,ministral,single-h100,exp1
+WANDB_API_KEY=your_api_key
+```
+
 Default base model: `mistralai/Ministral-3-14B-Instruct-2512`
 Default W&B project: `mistral-rl`
 Launcher preflight: installs `wandb` if missing and validates W&B authentication before training starts.
