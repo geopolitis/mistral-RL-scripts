@@ -274,7 +274,6 @@ def main() -> None:
     model_init_kwargs: dict[str, Any] = {
         "torch_dtype": torch.bfloat16 if args.bf16 else torch.float16,
         "attn_implementation": attn_impl,
-        "use_cache": False,
     }
 
     if args.use_4bit:
