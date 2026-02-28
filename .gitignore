@@ -1,0 +1,52 @@
+# Build artifacts
+# Cargo
+# Database files
+# Documentation build
+# Environment files
+# IDE files
+# Local configuration
+# Log files
+# OS files
+# Python bindings
+# Rust
+# Test artifacts
+**/*.rs.bk
+*.db
+*.egg-info/
+*.log
+*.pdb
+*.pyc
+*.pyd
+*.so
+*.sqlite
+*.sqlite3
+*.swo
+*.swp
+.DS_Store
+.env
+.env.development
+.env.local
+.env.production
+.idea/
+.pytest_cache/
+.venv/
+.vscode/
+/build/
+/coverage/
+/dist/
+/docs/_build/.env
+/docs/book/
+/target/
+/target-local/
+/test-results/
+Thumbs.db
+__pycache__/
+config.dev.yaml
+config.local.yaml
+llmtrace-python/target/
+config.yaml
+TODO.md
+models/
+benchmarks/datasets/training/cache/
+benchmarks/datasets/training/training_dataset.json
+.next/

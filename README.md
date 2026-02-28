@@ -1,1 +1,94 @@
 # mistral-RL-scripts
+
+Single-GPU RL fine-tuning (GRPO) for Mistral using the local JSON datasets in `datasets/`.
+
+## 1) Install
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements-rl.txt
+```
+
+## 2) Run on one H100
+
+```bash
+bash scripts/run_grpo_single_h100.sh
+```
+
+Default base model: `mistralai/Ministral-3-14B-Instruct-2512`
+Default W&B project: `mistral-rl`
+Launcher preflight: installs `wandb` if missing and validates W&B authentication before training starts.
+Tracking conventions: fixed seed, explicit step logging, run naming, tags/group/job_type.
+
+If you want non-interactive auth:
+
+```bash
+export WANDB_API_KEY=your_api_key
+bash scripts/run_grpo_single_h100.sh
+```
+
+Or login once manually:
+
+```bash
+wandb login
+```
+
+## 3) Override defaults
+
+```bash
+MODEL_NAME=mistralai/Ministral-3-14B-Instruct-2512 \
+DATA_DIR=datasets \
+OUTPUT_DIR=outputs/mistral-grpo-exp1 \
+RUN_NAME=ministral-grpo-exp1 \
+SEED=42 \
+WANDB_PROJECT=mistral-rl \
+WANDB_ENTITY=your_team_or_user \
+WANDB_GROUP=ministral-grpo \
+WANDB_JOB_TYPE=train \
+WANDB_TAGS=grpo,ministral,single-h100,exp1 \
+bash scripts/run_grpo_single_h100.sh
+```
+
+## 4) Run without W&B
+
+```bash
+python3 scripts/train_grpo_mistral.py \
+  --model-name mistralai/Ministral-3-14B-Instruct-2512 \
+  --data-dir datasets \
+  --output-dir outputs/mistral-grpo \
+  --report-to none \
+  --bf16 \
+  --use-4bit
+```
+
+## 5) Direct script usage
+
+```bash
+python3 scripts/train_grpo_mistral.py \
+  --model-name mistralai/Ministral-3-14B-Instruct-2512 \
+  --data-dir datasets \
+  --output-dir outputs/mistral-grpo \
+  --run-name ministral-grpo-single-h100 \
+  --seed 42 \
+  --report-to wandb \
+  --wandb-project mistral-rl \
+  --wandb-entity your_team_or_user \
+  --wandb-group ministral-grpo \
+  --wandb-job-type train \
+  --wandb-tags grpo,ministral,single-h100 \
+  --bf16 \
+  --use-4bit \
+  --per-device-batch-size 1 \
+  --gradient-accumulation-steps 16 \
+  --num-generations 4
+```
+
+## Reward behavior
+
+The reward function is label-conditioned:
+- `malicious` prompts: reward refusals, penalize unsafe/helpful attack content.
+- `benign` prompts: reward normal helpful answers, penalize unnecessary refusals.
+
+This is implemented in `scripts/train_grpo_mistral.py` and can be adjusted easily.
