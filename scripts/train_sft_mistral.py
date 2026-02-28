@@ -493,6 +493,17 @@ def main() -> None:
         tokenizer=tokenizer,
     )
 
+    # Sanity check: verify the collator finds the response template in tokenized samples.
+    # If it doesn't, every label is masked to -100 and training silently produces zero loss.
+    _sample_encoded = tokenizer(train_ds[0]["text"], return_tensors="pt")
+    _sample_batch = data_collator([{k: v.squeeze(0) for k, v in _sample_encoded.items()}])
+    _non_masked = (_sample_batch["labels"][0] != -100).sum().item()
+    assert _non_masked > 0, (
+        f"DataCollator masked all tokens -- response template {response_template!r} "
+        f"not found in tokenized text. Check tokenizer chat template compatibility."
+    )
+    print(f"[setup] collator sanity check passed: {_non_masked} tokens unmasked in sample")
+
     # Build SFTConfig
     sft_kwargs: dict[str, Any] = {
         "output_dir": args.output_dir,
