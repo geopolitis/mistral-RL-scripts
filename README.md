@@ -11,6 +11,12 @@ pip install --upgrade pip
 pip install -r requirements-rl.txt
 ```
 
+Optional (faster attention if it builds in your environment):
+
+```bash
+pip install --no-build-isolation flash-attn
+```
+
 ## 2) Run on one H100
 
 ```bash

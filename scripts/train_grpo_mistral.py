@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import argparse
 import glob
+import importlib.util
+import inspect
 import json
 import os
 import random
@@ -265,9 +267,13 @@ def main() -> None:
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
+    attn_impl = "flash_attention_2" if importlib.util.find_spec("flash_attn") is not None else "sdpa"
+    if attn_impl != "flash_attention_2":
+        print("[setup] flash-attn not found; falling back to sdpa attention.")
+
     model_init_kwargs: dict[str, Any] = {
         "torch_dtype": torch.bfloat16 if args.bf16 else torch.float16,
-        "attn_implementation": "flash_attention_2",
+        "attn_implementation": attn_impl,
         "use_cache": False,
     }
 
@@ -293,32 +299,44 @@ def main() -> None:
         target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
     )
 
-    training_args = GRPOConfig(
-        output_dir=args.output_dir,
-        run_name=args.run_name,
-        logging_steps=args.logging_steps,
-        save_steps=args.save_steps,
-        evaluation_strategy="steps",
-        eval_steps=args.eval_steps,
-        per_device_train_batch_size=args.per_device_batch_size,
-        gradient_accumulation_steps=args.gradient_accumulation_steps,
-        learning_rate=args.learning_rate,
-        weight_decay=args.weight_decay,
-        warmup_ratio=args.warmup_ratio,
-        num_train_epochs=args.num_train_epochs,
-        max_steps=args.max_steps,
-        seed=args.seed,
-        data_seed=args.seed,
-        bf16=args.bf16,
-        gradient_checkpointing=True,
-        remove_unused_columns=False,
-        max_prompt_length=args.max_prompt_length,
-        max_completion_length=args.max_completion_length,
-        num_generations=args.num_generations,
-        report_to="none" if args.report_to == "wandb" else args.report_to,
-        dataloader_num_workers=2,
-        model_init_kwargs=model_init_kwargs,
-    )
+    grpo_kwargs: dict[str, Any] = {
+        "output_dir": args.output_dir,
+        "run_name": args.run_name,
+        "logging_steps": args.logging_steps,
+        "save_steps": args.save_steps,
+        "eval_steps": args.eval_steps,
+        "per_device_train_batch_size": args.per_device_batch_size,
+        "gradient_accumulation_steps": args.gradient_accumulation_steps,
+        "learning_rate": args.learning_rate,
+        "weight_decay": args.weight_decay,
+        "warmup_ratio": args.warmup_ratio,
+        "num_train_epochs": args.num_train_epochs,
+        "max_steps": args.max_steps,
+        "seed": args.seed,
+        "data_seed": args.seed,
+        "bf16": args.bf16,
+        "gradient_checkpointing": True,
+        "remove_unused_columns": False,
+        "max_prompt_length": args.max_prompt_length,
+        "max_completion_length": args.max_completion_length,
+        "num_generations": args.num_generations,
+        "report_to": "none" if args.report_to == "wandb" else args.report_to,
+        "dataloader_num_workers": 2,
+        "model_init_kwargs": model_init_kwargs,
+    }
+
+    grpo_params = inspect.signature(GRPOConfig.__init__).parameters
+    if "evaluation_strategy" in grpo_params:
+        grpo_kwargs["evaluation_strategy"] = "steps"
+    elif "eval_strategy" in grpo_params:
+        grpo_kwargs["eval_strategy"] = "steps"
+
+    filtered_grpo_kwargs = {k: v for k, v in grpo_kwargs.items() if k in grpo_params}
+    dropped_grpo_kwargs = sorted(set(grpo_kwargs) - set(filtered_grpo_kwargs))
+    if dropped_grpo_kwargs:
+        print(f"[setup] ignoring unsupported GRPOConfig args: {', '.join(dropped_grpo_kwargs)}")
+
+    training_args = GRPOConfig(**filtered_grpo_kwargs)
 
     trainer = GRPOTrainer(
         model=args.model_name,
