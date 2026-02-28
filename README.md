@@ -165,6 +165,20 @@ python3 scripts/validate_vllm.py \
   --save-predictions outputs/mistral-grpo/validation-vllm-lora.json
 ```
 
+Validate against a remote vLLM server (OpenAI-compatible API):
+
+```bash
+export VLLM_API_KEY=your_api_key_if_needed
+python3 scripts/validate_vllm_remote.py \
+  --base-url http://your-vllm-server:8000 \
+  --endpoint /v1/chat/completions \
+  --model mistralai/Ministral-3-3B-Instruct-2512 \
+  --data-dir datasets/unique_prompts_balanced.json \
+  --eval-split 0.02 \
+  --max-samples 200 \
+  --save-predictions outputs/mistral-grpo/validation-vllm-remote.json
+```
+
 ## 8) Upload to Hugging Face Hub
 
 Set token once:
