@@ -99,6 +99,12 @@ def parse_args() -> argparse.Namespace:
         help="Path to a JSON file or directory with *.json files",
     )
     parser.add_argument("--model-name", type=str, default="mistralai/Ministral-3-3B-Instruct-2512-BF16")
+    parser.add_argument(
+        "--init-adapter",
+        type=str,
+        default="",
+        help="Optional LoRA adapter path to continue GRPO from an SFT adapter.",
+    )
     parser.add_argument("--output-dir", type=str, default="outputs/mistral-grpo")
     parser.add_argument("--max-samples", type=int, default=0, help="0 means use all samples")
     parser.add_argument("--train-split", type=float, default=0.98)
@@ -268,6 +274,15 @@ def reward_fn(completions: list[Any], label: list[str], **_: Any) -> list[float]
     return rewards
 
 
+def _load_adapter_base_model_name(adapter_path: str) -> str:
+    cfg_path = os.path.join(adapter_path, "adapter_config.json")
+    if not os.path.isfile(cfg_path):
+        return ""
+    with open(cfg_path, "r", encoding="utf-8") as f:
+        cfg = json.load(f)
+    return str(cfg.get("base_model_name_or_path", "")).strip()
+
+
 def main() -> None:
     args = parse_args()
     if args.num_generations < 2:
@@ -299,10 +314,25 @@ def main() -> None:
             config=vars(args),
         )
 
+    model_source = args.model_name
+    init_adapter = args.init_adapter.strip()
+    auto_detected_adapter = False
+    if not init_adapter and os.path.isdir(model_source):
+        detected_base = _load_adapter_base_model_name(model_source)
+        if detected_base:
+            init_adapter = model_source
+            model_source = detected_base
+            auto_detected_adapter = True
+            print(
+                f"[setup] detected adapter directory at {init_adapter}; "
+                f"using base model {model_source}."
+            )
+
     rows = load_examples(args.data_dir, args.max_samples, args.seed)
     train_ds, eval_ds = split_dataset(rows, args.train_split)
 
-    tokenizer = AutoTokenizer.from_pretrained(args.model_name, use_fast=True)
+    tokenizer_source = init_adapter if (init_adapter and os.path.isdir(init_adapter)) else model_source
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_source, use_fast=True)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     train_ds = apply_prompt_truncation(train_ds, tokenizer, args.max_prompt_length)
@@ -313,7 +343,7 @@ def main() -> None:
         print("[setup] flash-attn not found; falling back to sdpa attention.")
 
     target_dtype = torch.bfloat16 if args.bf16 else torch.float16
-    model_config = AutoConfig.from_pretrained(args.model_name)
+    model_config = AutoConfig.from_pretrained(model_source)
     existing_quant = getattr(model_config, "quantization_config", None)
     if isinstance(existing_quant, dict):
         quant_type_val = str(existing_quant.get("quant_type", ""))
@@ -341,9 +371,9 @@ def main() -> None:
     else:
         print("[setup] LoRA mode active: base model loaded without 4-bit quantization.")
 
-    print(f"[setup] loading model {args.model_name}...")
+    print(f"[setup] loading model {model_source}...")
     model_cls = getattr(transformers, model_config.architectures[0])
-    model = model_cls.from_pretrained(args.model_name, **load_kwargs)
+    model = model_cls.from_pretrained(model_source, **load_kwargs)
 
     if is_fp8:
         assert hasattr(model, "dequantize"), (
@@ -353,15 +383,26 @@ def main() -> None:
         print("[setup] dequantizing FP8 weights to BF16 for LoRA training...")
         model = model.dequantize()
 
-    peft_config = LoraConfig(
-        r=args.lora_r,
-        lora_alpha=args.lora_alpha,
-        lora_dropout=args.lora_dropout,
-        bias="none",
-        task_type="CAUSAL_LM",
-        target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
-    )
-    model = get_peft_model(model, peft_config)
+    if init_adapter:
+        from peft import PeftModel
+
+        if not os.path.isdir(init_adapter):
+            raise FileNotFoundError(f"--init-adapter path does not exist: {init_adapter}")
+        model = PeftModel.from_pretrained(model, init_adapter, is_trainable=True)
+        if auto_detected_adapter:
+            print("[setup] continuing GRPO from auto-detected SFT adapter weights.")
+        else:
+            print(f"[setup] continuing GRPO from adapter weights: {init_adapter}")
+    else:
+        peft_config = LoraConfig(
+            r=args.lora_r,
+            lora_alpha=args.lora_alpha,
+            lora_dropout=args.lora_dropout,
+            bias="none",
+            task_type="CAUSAL_LM",
+            target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
+        )
+        model = get_peft_model(model, peft_config)
     model.print_trainable_parameters()
 
     grpo_kwargs: dict[str, Any] = {

@@ -37,6 +37,12 @@ WANDB_GROUP="${WANDB_GROUP:-ministral-grpo}"
 WANDB_JOB_TYPE="${WANDB_JOB_TYPE:-train}"
 WANDB_TAGS="${WANDB_TAGS:-grpo,ministral,single-h200}"
 USE_4BIT="${USE_4BIT:-1}"
+MAX_PROMPT_LENGTH="${MAX_PROMPT_LENGTH:-384}"
+MAX_COMPLETION_LENGTH="${MAX_COMPLETION_LENGTH:-128}"
+NUM_GENERATIONS="${NUM_GENERATIONS:-2}"
+LEARNING_RATE="${LEARNING_RATE:-1.5e-6}"
+NUM_TRAIN_EPOCHS="${NUM_TRAIN_EPOCHS:-1}"
+INIT_ADAPTER="${INIT_ADAPTER:-}"
 
 ensure_wandb_installed() {
   if uv run --python "$PYTHON_BIN" -c "import wandb" >/dev/null 2>&1; then
@@ -73,6 +79,9 @@ EXTRA_FLAGS=()
 if [[ "$USE_4BIT" == "1" ]]; then
   EXTRA_FLAGS+=(--use-4bit)
 fi
+if [[ -n "$INIT_ADAPTER" ]]; then
+  EXTRA_FLAGS+=(--init-adapter "$INIT_ADAPTER")
+fi
 
 uv run --python "$PYTHON_BIN" scripts/train_grpo_mistral.py \
   --model-name "$MODEL_NAME" \
@@ -89,11 +98,11 @@ uv run --python "$PYTHON_BIN" scripts/train_grpo_mistral.py \
   --bf16 \
   --per-device-batch-size 1 \
   --gradient-accumulation-steps 16 \
-  --num-generations 2 \
-  --max-prompt-length 384 \
-  --max-completion-length 128 \
-  --learning-rate 1.5e-6 \
-  --num-train-epochs 1 \
+  --num-generations "$NUM_GENERATIONS" \
+  --max-prompt-length "$MAX_PROMPT_LENGTH" \
+  --max-completion-length "$MAX_COMPLETION_LENGTH" \
+  --learning-rate "$LEARNING_RATE" \
+  --num-train-epochs "$NUM_TRAIN_EPOCHS" \
   --logging-steps 10 \
   --save-steps 500 \
   --eval-steps 500 \

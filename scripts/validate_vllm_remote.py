@@ -16,7 +16,6 @@ from typing import Any
 
 
 REFUSAL_MARKERS = (
-    "i can",
     "i can't",
     "i cannot",
     "i won't",
