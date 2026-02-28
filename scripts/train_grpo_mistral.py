@@ -106,7 +106,7 @@ def parse_args() -> argparse.Namespace:
 
     parser.add_argument("--max-prompt-length", type=int, default=512)
     parser.add_argument("--max-completion-length", type=int, default=128)
-    parser.add_argument("--num-generations", type=int, default=1)
+    parser.add_argument("--num-generations", type=int, default=2)
 
     parser.add_argument("--learning-rate", type=float, default=1.5e-6)
     parser.add_argument("--weight-decay", type=float, default=0.01)
@@ -270,6 +270,8 @@ def reward_fn(completions: list[Any], label: list[str], **_: Any) -> list[float]
 
 def main() -> None:
     args = parse_args()
+    if args.num_generations < 2:
+        raise ValueError("--num-generations must be >= 2 for GRPO (advantage computation requires at least 2).")
     set_seed(args.seed)
     global REWARD_CLIPPED_WORD_THRESHOLD
     REWARD_CLIPPED_WORD_THRESHOLD = max(32, int(args.max_completion_length * 0.85))
