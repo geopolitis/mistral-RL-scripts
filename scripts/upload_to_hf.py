@@ -7,7 +7,16 @@ import argparse
 import os
 from pathlib import Path
 
-from huggingface_hub import HfApi
+try:
+    from huggingface_hub import HfApi
+except ImportError as exc:
+    raise SystemExit(
+        "Missing dependency: huggingface_hub.\n"
+        "Install it with one of:\n"
+        "  pip install huggingface_hub\n"
+        "  uv pip install --python .venv/bin/python huggingface_hub\n"
+        "Then rerun this script."
+    ) from exc
 
 
 def parse_args() -> argparse.Namespace:
@@ -31,10 +40,16 @@ def parse_args() -> argparse.Namespace:
         choices=["model", "dataset", "space"],
         help="HF repo type (default: model)",
     )
-    parser.add_argument(
+    visibility = parser.add_mutually_exclusive_group()
+    visibility.add_argument(
         "--private",
         action="store_true",
         help="Create repo as private if it does not exist",
+    )
+    visibility.add_argument(
+        "--public",
+        action="store_true",
+        help="Create repo as public if it does not exist",
     )
     parser.add_argument(
         "--token",
@@ -82,10 +97,11 @@ def main() -> None:
     api = HfApi(token=token)
 
     print(f"[hf] ensuring repo exists: {args.repo_id} ({args.repo_type})")
+    private = False if args.public else args.private
     api.create_repo(
         repo_id=args.repo_id,
         repo_type=args.repo_type,
-        private=args.private,
+        private=private,
         exist_ok=True,
     )
 
