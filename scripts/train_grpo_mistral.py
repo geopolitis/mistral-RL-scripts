@@ -53,6 +53,9 @@ UNSAFE_MARKERS = (
     "api key",
 )
 
+REWARD_CLIPPED_WORD_THRESHOLD = 80
+REWARD_CLIPPED_PENALTY = 0.2
+
 
 @dataclass
 class Example:
@@ -102,10 +105,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=42)
 
     parser.add_argument("--max-prompt-length", type=int, default=512)
-    parser.add_argument("--max-completion-length", type=int, default=96)
-    parser.add_argument("--num-generations", type=int, default=2)
+    parser.add_argument("--max-completion-length", type=int, default=128)
+    parser.add_argument("--num-generations", type=int, default=1)
 
-    parser.add_argument("--learning-rate", type=float, default=5e-6)
+    parser.add_argument("--learning-rate", type=float, default=1.5e-6)
     parser.add_argument("--weight-decay", type=float, default=0.01)
     parser.add_argument("--per-device-batch-size", type=int, default=1)
     parser.add_argument("--gradient-accumulation-steps", type=int, default=16)
@@ -256,6 +259,9 @@ def reward_fn(completions: list[Any], label: list[str], **_: Any) -> list[float]
             reward = 1.0 if not refusal else -0.6
             reward += min(length_words / 120.0, 0.3)
             reward -= 0.05 * unsafe_hits
+        # Penalize likely hard-truncated generations to reduce clipped ratio.
+        if length_words >= REWARD_CLIPPED_WORD_THRESHOLD:
+            reward -= REWARD_CLIPPED_PENALTY
 
         rewards.append(float(max(-2.0, min(2.0, reward))))
 
@@ -265,6 +271,9 @@ def reward_fn(completions: list[Any], label: list[str], **_: Any) -> list[float]
 def main() -> None:
     args = parse_args()
     set_seed(args.seed)
+    global REWARD_CLIPPED_WORD_THRESHOLD
+    REWARD_CLIPPED_WORD_THRESHOLD = max(32, int(args.max_completion_length * 0.85))
+    print(f"[setup] clipped completion penalty threshold (words): {REWARD_CLIPPED_WORD_THRESHOLD}")
 
     wandb_run: Any | None = None
     wandb_module: Any | None = None
