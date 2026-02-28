@@ -55,6 +55,8 @@ UNSAFE_MARKERS = (
 
 REWARD_CLIPPED_WORD_THRESHOLD = 80
 REWARD_CLIPPED_PENALTY = 0.2
+REWARD_SHORT_WORD_THRESHOLD = 20
+REWARD_SHORT_PENALTY = 0.15
 
 
 @dataclass
@@ -111,8 +113,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=42)
 
     parser.add_argument("--max-prompt-length", type=int, default=512)
-    parser.add_argument("--max-completion-length", type=int, default=128)
-    parser.add_argument("--num-generations", type=int, default=2)
+    parser.add_argument("--max-completion-length", type=int, default=224)
+    parser.add_argument("--num-generations", type=int, default=4)
+    parser.add_argument(
+        "--reward-short-word-threshold",
+        type=int,
+        default=20,
+        help="Apply a small penalty when completion length is below this word count. Set 0 to disable.",
+    )
+    parser.add_argument(
+        "--reward-short-penalty",
+        type=float,
+        default=0.15,
+        help="Penalty applied for very short completions (see --reward-short-word-threshold).",
+    )
 
     parser.add_argument("--learning-rate", type=float, default=1.5e-6)
     parser.add_argument("--weight-decay", type=float, default=0.01)
@@ -268,6 +282,9 @@ def reward_fn(completions: list[Any], label: list[str], **_: Any) -> list[float]
         # Penalize likely hard-truncated generations to reduce clipped ratio.
         if length_words >= REWARD_CLIPPED_WORD_THRESHOLD:
             reward -= REWARD_CLIPPED_PENALTY
+        # Penalize degenerate very-short outputs.
+        if REWARD_SHORT_WORD_THRESHOLD > 0 and length_words < REWARD_SHORT_WORD_THRESHOLD:
+            reward -= REWARD_SHORT_PENALTY
 
         rewards.append(float(max(-2.0, min(2.0, reward))))
 
@@ -288,9 +305,16 @@ def main() -> None:
     if args.num_generations < 2:
         raise ValueError("--num-generations must be >= 2 for GRPO (advantage computation requires at least 2).")
     set_seed(args.seed)
-    global REWARD_CLIPPED_WORD_THRESHOLD
+    global REWARD_CLIPPED_WORD_THRESHOLD, REWARD_SHORT_WORD_THRESHOLD, REWARD_SHORT_PENALTY
     REWARD_CLIPPED_WORD_THRESHOLD = max(32, int(args.max_completion_length * 0.85))
+    REWARD_SHORT_WORD_THRESHOLD = max(0, args.reward_short_word_threshold)
+    REWARD_SHORT_PENALTY = max(0.0, args.reward_short_penalty)
     print(f"[setup] clipped completion penalty threshold (words): {REWARD_CLIPPED_WORD_THRESHOLD}")
+    if REWARD_SHORT_WORD_THRESHOLD > 0 and REWARD_SHORT_PENALTY > 0:
+        print(
+            f"[setup] short completion penalty: {REWARD_SHORT_PENALTY} "
+            f"for outputs under {REWARD_SHORT_WORD_THRESHOLD} words"
+        )
 
     wandb_run: Any | None = None
     wandb_module: Any | None = None

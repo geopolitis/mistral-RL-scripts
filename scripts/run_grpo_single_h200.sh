@@ -37,12 +37,14 @@ WANDB_GROUP="${WANDB_GROUP:-ministral-grpo}"
 WANDB_JOB_TYPE="${WANDB_JOB_TYPE:-train}"
 WANDB_TAGS="${WANDB_TAGS:-grpo,ministral,single-h200}"
 USE_4BIT="${USE_4BIT:-1}"
-MAX_PROMPT_LENGTH="${MAX_PROMPT_LENGTH:-384}"
-MAX_COMPLETION_LENGTH="${MAX_COMPLETION_LENGTH:-128}"
-NUM_GENERATIONS="${NUM_GENERATIONS:-2}"
+MAX_PROMPT_LENGTH="${MAX_PROMPT_LENGTH:-512}"
+MAX_COMPLETION_LENGTH="${MAX_COMPLETION_LENGTH:-224}"
+NUM_GENERATIONS="${NUM_GENERATIONS:-4}"
 LEARNING_RATE="${LEARNING_RATE:-1.5e-6}"
 NUM_TRAIN_EPOCHS="${NUM_TRAIN_EPOCHS:-1}"
 INIT_ADAPTER="${INIT_ADAPTER:-}"
+REWARD_SHORT_WORD_THRESHOLD="${REWARD_SHORT_WORD_THRESHOLD:-20}"
+REWARD_SHORT_PENALTY="${REWARD_SHORT_PENALTY:-0.15}"
 
 ensure_wandb_installed() {
   if uv run --python "$PYTHON_BIN" -c "import wandb" >/dev/null 2>&1; then
@@ -101,6 +103,8 @@ uv run --python "$PYTHON_BIN" scripts/train_grpo_mistral.py \
   --num-generations "$NUM_GENERATIONS" \
   --max-prompt-length "$MAX_PROMPT_LENGTH" \
   --max-completion-length "$MAX_COMPLETION_LENGTH" \
+  --reward-short-word-threshold "$REWARD_SHORT_WORD_THRESHOLD" \
+  --reward-short-penalty "$REWARD_SHORT_PENALTY" \
   --learning-rate "$LEARNING_RATE" \
   --num-train-epochs "$NUM_TRAIN_EPOCHS" \
   --logging-steps 10 \
