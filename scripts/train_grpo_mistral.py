@@ -91,7 +91,7 @@ class WandbStepLoggerCallback(TrainerCallback):
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="GRPO fine-tuning for Mistral on a single H200")
     parser.add_argument("--data-dir", type=str, default="datasets", help="Directory with *.json files")
-    parser.add_argument("--model-name", type=str, default="mistralai/Ministral-3-3B-Instruct-2512")
+    parser.add_argument("--model-name", type=str, default="mistralai/Ministral-3-3B-Instruct-2512-BF16")
     parser.add_argument("--output-dir", type=str, default="outputs/mistral-grpo")
     parser.add_argument("--max-samples", type=int, default=0, help="0 means use all samples")
     parser.add_argument("--train-split", type=float, default=0.98)
@@ -275,10 +275,15 @@ def main() -> None:
     target_dtype = torch.bfloat16 if args.bf16 else torch.float16
     model_config = AutoConfig.from_pretrained(args.model_name)
     existing_quant = getattr(model_config, "quantization_config", None)
-    is_fp8 = existing_quant is not None and "fp8" in str(getattr(existing_quant, "quant_type", "")).lower()
+    if isinstance(existing_quant, dict):
+        quant_type_val = str(existing_quant.get("quant_type", ""))
+    else:
+        quant_type_val = str(getattr(existing_quant, "quant_type", ""))
+    is_fp8 = existing_quant is not None and "fp8" in quant_type_val.lower()
 
     load_kwargs: dict[str, Any] = {
         "dtype": target_dtype,
+        "device_map": "auto",
         "attn_implementation": attn_impl,
     }
 

@@ -26,7 +26,7 @@ if [[ ! -x "$VENV_PATH/bin/python" ]]; then
 fi
 PYTHON_BIN="$VENV_PATH/bin/python"
 
-MODEL_NAME="${MODEL_NAME:-mistralai/Ministral-3-3B-Instruct-2512}"
+MODEL_NAME="${MODEL_NAME:-mistralai/Ministral-3-3B-Instruct-2512-BF16}"
 DATA_DIR="${DATA_DIR:-datasets}"
 OUTPUT_DIR="${OUTPUT_DIR:-outputs/mistral-grpo}"
 RUN_NAME="${RUN_NAME:-ministral-grpo-single-h200}"
