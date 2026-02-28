@@ -51,7 +51,7 @@ bash scripts/run_grpo_single_h100.sh
 Or login once manually:
 
 ```bash
-wandb login
+python3 -m wandb login
 ```
 
 ## 3) Override defaults

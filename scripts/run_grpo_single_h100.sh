@@ -36,7 +36,7 @@ ensure_wandb_installed() {
 ensure_wandb_login() {
   if [[ -n "${WANDB_API_KEY:-}" ]]; then
     echo "[preflight] logging into W&B with WANDB_API_KEY..."
-    wandb login --relogin "$WANDB_API_KEY"
+    python3 -m wandb login --relogin "$WANDB_API_KEY"
   fi
 
   if python3 - <<'PY'
@@ -48,7 +48,7 @@ PY
   fi
 
   echo "[preflight] W&B is not authenticated."
-  echo "[preflight] Run 'wandb login' once, or set WANDB_API_KEY before launching."
+  echo "[preflight] Run 'python3 -m wandb login' once, or set WANDB_API_KEY before launching."
   exit 1
 }
 
