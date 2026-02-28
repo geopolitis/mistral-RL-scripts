@@ -20,8 +20,8 @@ from typing import Any
 
 import torch
 from datasets import Dataset
-from peft import LoraConfig
-from transformers import AutoConfig, AutoTokenizer, TrainerCallback, TrainerControl, TrainerState, TrainingArguments, set_seed
+from peft import LoraConfig, get_peft_model
+from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer, TrainerCallback, TrainerControl, TrainerState, TrainingArguments, set_seed
 from trl import GRPOConfig, GRPOTrainer
 
 
@@ -271,30 +271,37 @@ def main() -> None:
     if attn_impl != "flash_attention_2":
         print("[setup] flash-attn not found; falling back to sdpa attention.")
 
-    model_init_kwargs: dict[str, Any] = {
-        "torch_dtype": torch.bfloat16 if args.bf16 else torch.float16,
+    target_dtype = torch.bfloat16 if args.bf16 else torch.float16
+    model_config = AutoConfig.from_pretrained(args.model_name)
+    existing_quant = getattr(model_config, "quantization_config", None)
+    is_fp8 = existing_quant is not None and "fp8" in str(getattr(existing_quant, "quant_type", "")).lower()
+
+    load_kwargs: dict[str, Any] = {
+        "torch_dtype": target_dtype,
         "attn_implementation": attn_impl,
     }
 
-    if args.use_4bit:
-        try:
-            from transformers import BitsAndBytesConfig
-            model_config = AutoConfig.from_pretrained(args.model_name)
-            existing_qconfig = getattr(model_config, "quantization_config", None)
-            if existing_qconfig is not None and str(type(existing_qconfig)).lower().find("bitsandbytes") == -1:
-                print(
-                    "[setup] model has non-bitsandbytes quantization config; "
-                    "skipping --use-4bit override."
-                )
-            else:
-                model_init_kwargs["quantization_config"] = BitsAndBytesConfig(
-                    load_in_4bit=True,
-                    bnb_4bit_quant_type="nf4",
-                    bnb_4bit_use_double_quant=True,
-                    bnb_4bit_compute_dtype=torch.bfloat16 if args.bf16 else torch.float16,
-                )
-        except Exception as exc:
-            raise RuntimeError("--use-4bit requested but bitsandbytes config failed") from exc
+    if args.use_4bit and not is_fp8:
+        from transformers import BitsAndBytesConfig
+        load_kwargs["quantization_config"] = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_use_double_quant=True,
+            bnb_4bit_compute_dtype=target_dtype,
+        )
+    elif args.use_4bit and is_fp8:
+        print("[setup] model has FP8 quantization; skipping --use-4bit.")
+
+    print(f"[setup] loading model {args.model_name}...")
+    model = AutoModelForCausalLM.from_pretrained(args.model_name, **load_kwargs)
+
+    if is_fp8:
+        assert hasattr(model, "dequantize"), (
+            "Model is FP8 quantized but dequantize() is not available. "
+            "Upgrade transformers or use a non-FP8 checkpoint."
+        )
+        print("[setup] dequantizing FP8 weights to BF16 for LoRA training...")
+        model = model.dequantize()
 
     peft_config = LoraConfig(
         r=args.lora_r,
@@ -304,6 +311,8 @@ def main() -> None:
         task_type="CAUSAL_LM",
         target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
     )
+    model = get_peft_model(model, peft_config)
+    model.print_trainable_parameters()
 
     grpo_kwargs: dict[str, Any] = {
         "output_dir": args.output_dir,
@@ -328,7 +337,6 @@ def main() -> None:
         "num_generations": args.num_generations,
         "report_to": "none" if args.report_to == "wandb" else args.report_to,
         "dataloader_num_workers": 2,
-        "model_init_kwargs": model_init_kwargs,
     }
 
     grpo_params = inspect.signature(GRPOConfig.__init__).parameters
@@ -345,12 +353,11 @@ def main() -> None:
     training_args = GRPOConfig(**filtered_grpo_kwargs)
 
     trainer = GRPOTrainer(
-        model=args.model_name,
+        model=model,
         reward_funcs=reward_fn,
         args=training_args,
         train_dataset=train_ds,
         eval_dataset=eval_ds,
-        peft_config=peft_config,
         processing_class=tokenizer,
     )
     if args.report_to == "wandb" and wandb_module is not None:
