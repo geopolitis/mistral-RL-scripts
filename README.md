@@ -2,6 +2,8 @@
 
 Single-GPU RL fine-tuning (GRPO) for Mistral using the local JSON datasets in `datasets/`.
 
+Dataset summary and quality notes: [DATASET_DETAILS.md](DATASET_DETAILS.md)
+
 ## 1) Install
 
 ```bash
