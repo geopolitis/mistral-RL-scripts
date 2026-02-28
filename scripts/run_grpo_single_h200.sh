@@ -39,7 +39,7 @@ WANDB_TAGS="${WANDB_TAGS:-grpo,ministral,single-h200}"
 USE_4BIT="${USE_4BIT:-0}"
 
 ensure_wandb_installed() {
-  if "$PYTHON_BIN" -c "import wandb" >/dev/null 2>&1; then
+  if uv run --python "$PYTHON_BIN" -c "import wandb" >/dev/null 2>&1; then
     return 0
   fi
 
@@ -53,7 +53,7 @@ ensure_wandb_login() {
     uv run --python "$PYTHON_BIN" -m wandb login --relogin "$WANDB_API_KEY"
   fi
 
-  if "$PYTHON_BIN" - <<'PY'
+  if uv run --python "$PYTHON_BIN" - <<'PY'
 import wandb
 raise SystemExit(0 if wandb.api.api_key else 1)
 PY
@@ -62,7 +62,7 @@ PY
   fi
 
   echo "[preflight] W&B is not authenticated."
-  echo "[preflight] Run 'python3 -m wandb login' once, or set WANDB_API_KEY before launching."
+  echo "[preflight] Run 'uv run -m wandb login' once, or set WANDB_API_KEY before launching."
   exit 1
 }
 
