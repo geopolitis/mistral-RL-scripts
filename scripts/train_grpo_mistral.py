@@ -312,7 +312,7 @@ def main() -> None:
 
     load_kwargs: dict[str, Any] = {
         "dtype": target_dtype,
-        "device_map": "auto",
+        "device_map": {"": 0},
         "attn_implementation": attn_impl,
     }
 
@@ -372,7 +372,7 @@ def main() -> None:
         "max_completion_length": args.max_completion_length,
         "num_generations": args.num_generations,
         "report_to": "none" if args.report_to == "wandb" else args.report_to,
-        "dataloader_num_workers": 2,
+        "dataloader_num_workers": 0,
     }
 
     grpo_params = inspect.signature(GRPOConfig.__init__).parameters
