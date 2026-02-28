@@ -37,7 +37,7 @@ from transformers import (
     TrainingArguments,
     set_seed,
 )
-from trl import DataCollatorForCompletionOnlyLM, SFTConfig, SFTTrainer
+from trl import SFTConfig, SFTTrainer
 
 
 # ---------------------------------------------------------------------------
@@ -295,28 +295,32 @@ def _pick_response(prompt: str, responses: list[str]) -> str:
     return responses[idx]
 
 
-def format_as_chat(
+def format_as_prompt_completion(
     examples: list[Example],
     tokenizer: AutoTokenizer,
     max_seq_length: int,
 ) -> list[dict[str, str]]:
-    """Convert malicious examples to chat-template strings with refusal responses.
+    """Convert malicious examples to prompt/completion pairs.
 
-    Each example becomes: system prompt + user prompt + assistant refusal.
-    Completion-only loss masking (via DataCollatorForCompletionOnlyLM) ensures
-    gradients flow only through the assistant refusal tokens.
+    Each example becomes:
+    - prompt: system + user messages rendered with add_generation_prompt=True
+    - completion: the assistant refusal text
+
+    SFTTrainer natively computes loss only on the completion column,
+    so no custom data collator is needed.
     """
     formatted: list[dict[str, str]] = []
 
     for ex in examples:
         response = _pick_response(ex.prompt, MALICIOUS_REFUSALS)
-        messages = [
+        prompt_messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": ex.prompt},
-            {"role": "assistant", "content": response},
         ]
-        text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=False)
-        formatted.append({"text": text})
+        prompt_text = tokenizer.apply_chat_template(
+            prompt_messages, tokenize=False, add_generation_prompt=True,
+        )
+        formatted.append({"prompt": prompt_text, "completion": response})
 
     return formatted
 
@@ -333,8 +337,8 @@ def split_and_format(
     train_rows = rows[:split_idx]
     eval_rows = rows[split_idx:]
 
-    train_formatted = format_as_chat(train_rows, tokenizer, max_seq_length)
-    eval_formatted = format_as_chat(eval_rows, tokenizer, max_seq_length)
+    train_formatted = format_as_prompt_completion(train_rows, tokenizer, max_seq_length)
+    eval_formatted = format_as_prompt_completion(eval_rows, tokenizer, max_seq_length)
 
     train_ds = Dataset.from_list(train_formatted)
     eval_ds = Dataset.from_list(eval_formatted)
@@ -417,38 +421,6 @@ def load_model_and_tokenizer(args: argparse.Namespace) -> tuple[Any, AutoTokeniz
 
 
 # ---------------------------------------------------------------------------
-# Completion-only loss masking
-# ---------------------------------------------------------------------------
-
-
-def detect_response_template(tokenizer: AutoTokenizer) -> str:
-    """Detect the assistant turn marker from the tokenizer's chat template.
-
-    Compares template output with and without add_generation_prompt to isolate
-    the exact string the tokenizer inserts before the assistant's first token.
-    DataCollatorForCompletionOnlyLM uses this to mask all prompt tokens from loss.
-    """
-    prompt_messages = [
-        {"role": "system", "content": "PLACEHOLDER_SYS"},
-        {"role": "user", "content": "PLACEHOLDER_USR"},
-    ]
-    without_gen = tokenizer.apply_chat_template(
-        prompt_messages, tokenize=False, add_generation_prompt=False,
-    )
-    with_gen = tokenizer.apply_chat_template(
-        prompt_messages, tokenize=False, add_generation_prompt=True,
-    )
-    response_template = with_gen[len(without_gen):]
-    assert response_template.strip(), (
-        f"Could not detect response template.\n"
-        f"Without gen prompt: {without_gen!r}\n"
-        f"With gen prompt: {with_gen!r}"
-    )
-    print(f"[setup] detected response template: {response_template!r}")
-    return response_template
-
-
-# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -489,24 +461,6 @@ def main() -> None:
     # Format data as chat conversations and split
     train_ds, eval_ds = split_and_format(rows, args.train_split, tokenizer, args.max_seq_length)
 
-    # Build completion-only data collator
-    response_template = detect_response_template(tokenizer)
-    data_collator = DataCollatorForCompletionOnlyLM(
-        response_template=response_template,
-        tokenizer=tokenizer,
-    )
-
-    # Sanity check: verify the collator finds the response template in tokenized samples.
-    # If it doesn't, every label is masked to -100 and training silently produces zero loss.
-    _sample_encoded = tokenizer(train_ds[0]["text"], return_tensors="pt")
-    _sample_batch = data_collator([{k: v.squeeze(0) for k, v in _sample_encoded.items()}])
-    _non_masked = (_sample_batch["labels"][0] != -100).sum().item()
-    assert _non_masked > 0, (
-        f"DataCollator masked all tokens -- response template {response_template!r} "
-        f"not found in tokenized text. Check tokenizer chat template compatibility."
-    )
-    print(f"[setup] collator sanity check passed: {_non_masked} tokens unmasked in sample")
-
     # Build SFTConfig
     sft_kwargs: dict[str, Any] = {
         "output_dir": args.output_dir,
@@ -529,7 +483,6 @@ def main() -> None:
         "gradient_checkpointing": True,
         "gradient_checkpointing_kwargs": {"use_reentrant": False},
         "max_seq_length": args.max_seq_length,
-        "dataset_text_field": "text",
         "packing": False,
         "report_to": "none" if args.report_to == "wandb" else args.report_to,
         "dataloader_num_workers": 0,
@@ -559,7 +512,6 @@ def main() -> None:
         train_dataset=train_ds,
         eval_dataset=eval_ds,
         processing_class=tokenizer,
-        data_collator=data_collator,
     )
     if args.report_to == "wandb" and wandb_module is not None:
         trainer.add_callback(WandbStepLoggerCallback(wandb_module))
