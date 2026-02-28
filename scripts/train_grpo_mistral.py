@@ -20,8 +20,9 @@ from typing import Any
 
 import torch
 from datasets import Dataset
+import transformers
 from peft import LoraConfig, get_peft_model
-from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer, TrainerCallback, TrainerControl, TrainerState, TrainingArguments, set_seed
+from transformers import AutoConfig, AutoTokenizer, TrainerCallback, TrainerControl, TrainerState, TrainingArguments, set_seed
 from trl import GRPOConfig, GRPOTrainer
 
 
@@ -277,7 +278,7 @@ def main() -> None:
     is_fp8 = existing_quant is not None and "fp8" in str(getattr(existing_quant, "quant_type", "")).lower()
 
     load_kwargs: dict[str, Any] = {
-        "torch_dtype": target_dtype,
+        "dtype": target_dtype,
         "attn_implementation": attn_impl,
     }
 
@@ -293,7 +294,8 @@ def main() -> None:
         print("[setup] model has FP8 quantization; skipping --use-4bit.")
 
     print(f"[setup] loading model {args.model_name}...")
-    model = AutoModelForCausalLM.from_pretrained(args.model_name, **load_kwargs)
+    model_cls = getattr(transformers, model_config.architectures[0])
+    model = model_cls.from_pretrained(args.model_name, **load_kwargs)
 
     if is_fp8:
         assert hasattr(model, "dequantize"), (
