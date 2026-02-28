@@ -165,6 +165,36 @@ python3 scripts/validate_vllm.py \
   --save-predictions outputs/mistral-grpo/validation-vllm-lora.json
 ```
 
+## 8) Upload to Hugging Face Hub
+
+Set token once:
+
+```bash
+export HF_TOKEN=your_hf_token
+```
+
+Upload GRPO adapter/output folder:
+
+```bash
+python3 scripts/upload_to_hf.py \
+  --local-path outputs/mistral-grpo \
+  --repo-id your-user/ministral-grpo-lora \
+  --repo-type model \
+  --private \
+  --commit-message \"Upload GRPO adapter checkpoint\"
+```
+
+Upload SFT output folder:
+
+```bash
+python3 scripts/upload_to_hf.py \
+  --local-path outputs/mistral-sft \
+  --repo-id your-user/ministral-sft-lora \
+  --repo-type model \
+  --private \
+  --commit-message \"Upload SFT adapter checkpoint\"
+```
+
 ## Reward behavior
 
 The reward function is label-conditioned:
