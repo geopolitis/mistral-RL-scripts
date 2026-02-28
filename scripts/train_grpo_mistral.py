@@ -15,6 +15,7 @@ import inspect
 import json
 import os
 import random
+import math
 from dataclasses import dataclass
 from typing import Any
 
@@ -134,7 +135,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--gradient-accumulation-steps", type=int, default=16)
     parser.add_argument("--num-train-epochs", type=float, default=1.0)
     parser.add_argument("--max-steps", type=int, default=-1, help="-1 uses num-train-epochs")
-    parser.add_argument("--warmup-ratio", type=float, default=0.03)
+    parser.add_argument(
+        "--warmup-ratio",
+        type=float,
+        default=0.03,
+        help="Deprecated compatibility flag. Ignored when --warmup-steps > 0.",
+    )
+    parser.add_argument(
+        "--warmup-steps",
+        type=int,
+        default=0,
+        help="Number of warmup steps. If 0, computed from --warmup-ratio.",
+    )
 
     parser.add_argument("--lora-r", type=int, default=32)
     parser.add_argument("--lora-alpha", type=int, default=64)
@@ -355,6 +367,19 @@ def main() -> None:
     rows = load_examples(args.data_dir, args.max_samples, args.seed)
     train_ds, eval_ds = split_dataset(rows, args.train_split)
 
+    # Compute explicit warmup_steps to avoid warmup_ratio deprecation warnings.
+    if args.warmup_steps > 0:
+        warmup_steps = args.warmup_steps
+    else:
+        if args.max_steps and args.max_steps > 0:
+            total_steps = args.max_steps
+        else:
+            effective_batch = max(1, args.per_device_batch_size * args.gradient_accumulation_steps)
+            steps_per_epoch = max(1, math.ceil(len(train_ds) / effective_batch))
+            total_steps = max(1, math.ceil(steps_per_epoch * args.num_train_epochs))
+        warmup_steps = max(1, int(total_steps * max(0.0, args.warmup_ratio)))
+    print(f"[setup] warmup_steps: {warmup_steps}")
+
     tokenizer_source = init_adapter if (init_adapter and os.path.isdir(init_adapter)) else model_source
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_source, use_fast=True)
     if tokenizer.pad_token is None:
@@ -439,7 +464,7 @@ def main() -> None:
         "gradient_accumulation_steps": args.gradient_accumulation_steps,
         "learning_rate": args.learning_rate,
         "weight_decay": args.weight_decay,
-        "warmup_ratio": args.warmup_ratio,
+        "warmup_steps": warmup_steps,
         "num_train_epochs": args.num_train_epochs,
         "max_steps": args.max_steps,
         "seed": args.seed,
