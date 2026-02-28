@@ -46,6 +46,9 @@ INIT_ADAPTER="${INIT_ADAPTER:-}"
 REWARD_SHORT_WORD_THRESHOLD="${REWARD_SHORT_WORD_THRESHOLD:-20}"
 REWARD_SHORT_PENALTY="${REWARD_SHORT_PENALTY:-0.15}"
 WARMUP_STEPS="${WARMUP_STEPS:-0}"
+ATTEMPT_FLASH_ATTN_BUILD="${ATTEMPT_FLASH_ATTN_BUILD:-1}"
+TORCH_CUDA_ARCH_LIST="${TORCH_CUDA_ARCH_LIST:-9.0}"
+MAX_JOBS="${MAX_JOBS:-16}"
 
 ensure_wandb_installed() {
   if uv run --python "$PYTHON_BIN" -c "import wandb" >/dev/null 2>&1; then
@@ -100,6 +103,45 @@ PY
   fi
 }
 
+attempt_flash_attn_build() {
+  if [[ "$ATTEMPT_FLASH_ATTN_BUILD" != "1" ]]; then
+    return 0
+  fi
+
+  # Skip if already healthy.
+  if uv run --python "$PYTHON_BIN" - <<'PY'
+import importlib.util
+import sys
+if importlib.util.find_spec("flash_attn") is None:
+    raise SystemExit(1)
+import flash_attn  # noqa: F401
+raise SystemExit(0)
+PY
+  then
+    return 0
+  fi
+
+  # Cannot build from source without nvcc/toolkit.
+  if ! command -v nvcc >/dev/null 2>&1; then
+    echo "[preflight] nvcc not found; skipping flash-attn build (sdpa will be used)."
+    return 0
+  fi
+
+  echo "[preflight] attempting to build/install flash-attn for current torch/cuda stack..."
+  uv pip install --python "$PYTHON_BIN" -U setuptools wheel packaging ninja psutil >/dev/null
+  set +e
+  CUDA_HOME="${CUDA_HOME:-/usr/local/cuda}" \
+  TORCH_CUDA_ARCH_LIST="$TORCH_CUDA_ARCH_LIST" \
+  MAX_JOBS="$MAX_JOBS" \
+  uv pip install --python "$PYTHON_BIN" --no-build-isolation --no-cache-dir flash-attn
+  rc=$?
+  set -e
+  if [[ "$rc" != "0" ]]; then
+    echo "[preflight] flash-attn build failed; continuing with sdpa."
+    uv pip uninstall --python "$PYTHON_BIN" -y flash-attn >/dev/null 2>&1 || true
+  fi
+}
+
 ensure_wandb_login() {
   if [[ -n "${WANDB_API_KEY:-}" ]]; then
     echo "[preflight] logging into W&B with WANDB_API_KEY..."
@@ -122,6 +164,8 @@ PY
 ensure_runtime_deps
 ensure_wandb_installed
 ensure_wandb_login
+ensure_flash_attn_health
+attempt_flash_attn_build
 ensure_flash_attn_health
 
 EXTRA_FLAGS=()
