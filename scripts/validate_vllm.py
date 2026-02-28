@@ -30,7 +30,7 @@ REFUSAL_MARKERS = (
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Validate model behavior with vLLM")
-    parser.add_argument("--model", type=str, default="mistralai/Ministral-3-14B-Instruct-2512")
+    parser.add_argument("--model", type=str, default="mistralai/Ministral-3-3B-Instruct-2512")
     parser.add_argument("--adapter-path", type=str, default="", help="Optional LoRA adapter directory")
     parser.add_argument("--data-dir", type=str, default="datasets")
     parser.add_argument("--seed", type=int, default=42)

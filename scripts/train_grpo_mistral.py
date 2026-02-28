@@ -21,7 +21,7 @@ from typing import Any
 import torch
 from datasets import Dataset
 from peft import LoraConfig
-from transformers import AutoTokenizer, TrainerCallback, TrainerControl, TrainerState, TrainingArguments, set_seed
+from transformers import AutoConfig, AutoTokenizer, TrainerCallback, TrainerControl, TrainerState, TrainingArguments, set_seed
 from trl import GRPOConfig, GRPOTrainer
 
 
@@ -88,9 +88,9 @@ class WandbStepLoggerCallback(TrainerCallback):
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="GRPO fine-tuning for Mistral on a single H100")
+    parser = argparse.ArgumentParser(description="GRPO fine-tuning for Mistral on a single H200")
     parser.add_argument("--data-dir", type=str, default="datasets", help="Directory with *.json files")
-    parser.add_argument("--model-name", type=str, default="mistralai/Ministral-3-14B-Instruct-2512")
+    parser.add_argument("--model-name", type=str, default="mistralai/Ministral-3-3B-Instruct-2512")
     parser.add_argument("--output-dir", type=str, default="outputs/mistral-grpo")
     parser.add_argument("--max-samples", type=int, default=0, help="0 means use all samples")
     parser.add_argument("--train-split", type=float, default=0.98)
@@ -117,7 +117,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--logging-steps", type=int, default=10)
     parser.add_argument("--save-steps", type=int, default=100)
     parser.add_argument("--eval-steps", type=int, default=100)
-    parser.add_argument("--run-name", type=str, default="ministral-grpo-single-h100")
+    parser.add_argument("--run-name", type=str, default="ministral-grpo-single-h200")
     parser.add_argument("--report-to", type=str, default="none", help="none | wandb | tensorboard")
     parser.add_argument("--wandb-project", type=str, default="", help="Optional W&B project name")
     parser.add_argument("--wandb-entity", type=str, default="", help="Optional W&B entity/team")
@@ -127,7 +127,7 @@ def parse_args() -> argparse.Namespace:
         "--wandb-tags",
         type=str,
         default="",
-        help="Comma-separated W&B tags, e.g. 'grpo,ministral,single-h100'",
+        help="Comma-separated W&B tags, e.g. 'grpo,ministral,single-h200'",
     )
     return parser.parse_args()
 
@@ -280,13 +280,20 @@ def main() -> None:
     if args.use_4bit:
         try:
             from transformers import BitsAndBytesConfig
-
-            model_init_kwargs["quantization_config"] = BitsAndBytesConfig(
-                load_in_4bit=True,
-                bnb_4bit_quant_type="nf4",
-                bnb_4bit_use_double_quant=True,
-                bnb_4bit_compute_dtype=torch.bfloat16 if args.bf16 else torch.float16,
-            )
+            model_config = AutoConfig.from_pretrained(args.model_name)
+            existing_qconfig = getattr(model_config, "quantization_config", None)
+            if existing_qconfig is not None and str(type(existing_qconfig)).lower().find("bitsandbytes") == -1:
+                print(
+                    "[setup] model has non-bitsandbytes quantization config; "
+                    "skipping --use-4bit override."
+                )
+            else:
+                model_init_kwargs["quantization_config"] = BitsAndBytesConfig(
+                    load_in_4bit=True,
+                    bnb_4bit_quant_type="nf4",
+                    bnb_4bit_use_double_quant=True,
+                    bnb_4bit_compute_dtype=torch.bfloat16 if args.bf16 else torch.float16,
+                )
         except Exception as exc:
             raise RuntimeError("--use-4bit requested but bitsandbytes config failed") from exc
 

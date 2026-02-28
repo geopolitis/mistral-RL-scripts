@@ -17,10 +17,10 @@ Optional (faster attention if it builds in your environment):
 pip install --no-build-isolation flash-attn
 ```
 
-## 2) Run on one H100
+## 2) Run on one H200
 
 ```bash
-bash scripts/run_grpo_single_h100.sh
+bash scripts/run_grpo_single_h200.sh
 ```
 
 The launcher auto-loads `.env` if present (or `ENV_FILE=path/to/file`).
@@ -29,7 +29,7 @@ Priority order: explicit shell env > `.env` values > script defaults.
 Example `.env`:
 
 ```bash
-MODEL_NAME=mistralai/Ministral-3-14B-Instruct-2512
+MODEL_NAME=mistralai/Ministral-3-3B-Instruct-2512
 DATA_DIR=datasets
 OUTPUT_DIR=outputs/mistral-grpo-exp1
 RUN_NAME=ministral-grpo-exp1
@@ -38,11 +38,12 @@ WANDB_PROJECT=mistral-rl
 WANDB_ENTITY=geo-politis-n-a
 WANDB_GROUP=ministral-grpo
 WANDB_JOB_TYPE=train
-WANDB_TAGS=grpo,ministral,single-h100,exp1
+WANDB_TAGS=grpo,ministral,single-h200,exp1
 WANDB_API_KEY=your_api_key
+USE_4BIT=0
 ```
 
-Default base model: `mistralai/Ministral-3-14B-Instruct-2512`
+Default base model: `mistralai/Ministral-3-3B-Instruct-2512`
 Default W&B project: `mistral-rl`
 Launcher preflight: installs `wandb` if missing and validates W&B authentication before training starts.
 Tracking conventions: fixed seed, explicit step logging, run naming, tags/group/job_type.
@@ -51,7 +52,7 @@ If you want non-interactive auth:
 
 ```bash
 export WANDB_API_KEY=your_api_key
-bash scripts/run_grpo_single_h100.sh
+bash scripts/run_grpo_single_h200.sh
 ```
 
 Or login once manually:
@@ -63,7 +64,7 @@ python3 -m wandb login
 ## 3) Override defaults
 
 ```bash
-MODEL_NAME=mistralai/Ministral-3-14B-Instruct-2512 \
+MODEL_NAME=mistralai/Ministral-3-3B-Instruct-2512 \
 DATA_DIR=datasets \
 OUTPUT_DIR=outputs/mistral-grpo-exp1 \
 RUN_NAME=ministral-grpo-exp1 \
@@ -72,39 +73,41 @@ WANDB_PROJECT=mistral-rl \
 WANDB_ENTITY=your_team_or_user \
 WANDB_GROUP=ministral-grpo \
 WANDB_JOB_TYPE=train \
-WANDB_TAGS=grpo,ministral,single-h100,exp1 \
-bash scripts/run_grpo_single_h100.sh
+WANDB_TAGS=grpo,ministral,single-h200,exp1 \
+USE_4BIT=0 \
+bash scripts/run_grpo_single_h200.sh
 ```
+
+Set `USE_4BIT=1` only for base models that support bitsandbytes 4-bit loading.
+`mistralai/Ministral-3-3B-Instruct-2512` should stay at `USE_4BIT=0`.
 
 ## 4) Run without W&B
 
 ```bash
 python3 scripts/train_grpo_mistral.py \
-  --model-name mistralai/Ministral-3-14B-Instruct-2512 \
+  --model-name mistralai/Ministral-3-3B-Instruct-2512 \
   --data-dir datasets \
   --output-dir outputs/mistral-grpo \
   --report-to none \
-  --bf16 \
-  --use-4bit
+  --bf16
 ```
 
 ## 5) Direct script usage
 
 ```bash
 python3 scripts/train_grpo_mistral.py \
-  --model-name mistralai/Ministral-3-14B-Instruct-2512 \
+  --model-name mistralai/Ministral-3-3B-Instruct-2512 \
   --data-dir datasets \
   --output-dir outputs/mistral-grpo \
-  --run-name ministral-grpo-single-h100 \
+  --run-name ministral-grpo-single-h200 \
   --seed 42 \
   --report-to wandb \
   --wandb-project mistral-rl \
   --wandb-entity your_team_or_user \
   --wandb-group ministral-grpo \
   --wandb-job-type train \
-  --wandb-tags grpo,ministral,single-h100 \
+  --wandb-tags grpo,ministral,single-h200 \
   --bf16 \
-  --use-4bit \
   --per-device-batch-size 1 \
   --gradient-accumulation-steps 16 \
   --num-generations 4
@@ -121,7 +124,7 @@ Example:
 
 ```bash
 python3 scripts/infer.py \
-  --base-model mistralai/Ministral-3-14B-Instruct-2512 \
+  --base-model mistralai/Ministral-3-3B-Instruct-2512 \
   --adapter-path outputs/mistral-grpo \
   --data-dir datasets \
   --eval-split 0.02 \
@@ -141,7 +144,7 @@ Validate base model only:
 
 ```bash
 python3 scripts/validate_vllm.py \
-  --model mistralai/Ministral-3-14B-Instruct-2512 \
+  --model mistralai/Ministral-3-3B-Instruct-2512 \
   --data-dir datasets \
   --eval-split 0.02 \
   --max-samples 200 \
@@ -152,7 +155,7 @@ Validate fine-tuned LoRA adapter:
 
 ```bash
 python3 scripts/validate_vllm.py \
-  --model mistralai/Ministral-3-14B-Instruct-2512 \
+  --model mistralai/Ministral-3-3B-Instruct-2512 \
   --adapter-path outputs/mistral-grpo \
   --data-dir datasets \
   --eval-split 0.02 \

@@ -13,33 +13,47 @@ export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}"
 export TOKENIZERS_PARALLELISM=false
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
-MODEL_NAME="${MODEL_NAME:-mistralai/Ministral-3-14B-Instruct-2512}"
+if ! command -v uv >/dev/null 2>&1; then
+  echo "[preflight] uv is required but not found."
+  echo "[preflight] Install uv: curl -LsSf https://astral.sh/uv/install.sh | sh"
+  exit 1
+fi
+
+VENV_PATH="${VENV_PATH:-.venv}"
+if [[ ! -x "$VENV_PATH/bin/python" ]]; then
+  echo "[preflight] creating virtualenv at $VENV_PATH with uv..."
+  uv venv "$VENV_PATH"
+fi
+PYTHON_BIN="$VENV_PATH/bin/python"
+
+MODEL_NAME="${MODEL_NAME:-mistralai/Ministral-3-3B-Instruct-2512}"
 DATA_DIR="${DATA_DIR:-datasets}"
 OUTPUT_DIR="${OUTPUT_DIR:-outputs/mistral-grpo}"
-RUN_NAME="${RUN_NAME:-ministral-grpo-single-h100}"
+RUN_NAME="${RUN_NAME:-ministral-grpo-single-h200}"
 SEED="${SEED:-42}"
 WANDB_PROJECT="${WANDB_PROJECT:-mistral-rl}"
 WANDB_ENTITY="${WANDB_ENTITY:-}"
 WANDB_GROUP="${WANDB_GROUP:-ministral-grpo}"
 WANDB_JOB_TYPE="${WANDB_JOB_TYPE:-train}"
-WANDB_TAGS="${WANDB_TAGS:-grpo,ministral,single-h100}"
+WANDB_TAGS="${WANDB_TAGS:-grpo,ministral,single-h200}"
+USE_4BIT="${USE_4BIT:-0}"
 
 ensure_wandb_installed() {
-  if python3 -c "import wandb" >/dev/null 2>&1; then
+  if "$PYTHON_BIN" -c "import wandb" >/dev/null 2>&1; then
     return 0
   fi
 
-  echo "[preflight] wandb not found; installing..."
-  python3 -m pip install --upgrade wandb
+  echo "[preflight] wandb not found in $VENV_PATH; installing with uv..."
+  uv pip install --python "$PYTHON_BIN" --upgrade wandb
 }
 
 ensure_wandb_login() {
   if [[ -n "${WANDB_API_KEY:-}" ]]; then
     echo "[preflight] logging into W&B with WANDB_API_KEY..."
-    python3 -m wandb login --relogin "$WANDB_API_KEY"
+    uv run --python "$PYTHON_BIN" -m wandb login --relogin "$WANDB_API_KEY"
   fi
 
-  if python3 - <<'PY'
+  if "$PYTHON_BIN" - <<'PY'
 import wandb
 raise SystemExit(0 if wandb.api.api_key else 1)
 PY
@@ -55,7 +69,12 @@ PY
 ensure_wandb_installed
 ensure_wandb_login
 
-python3 scripts/train_grpo_mistral.py \
+EXTRA_FLAGS=()
+if [[ "$USE_4BIT" == "1" ]]; then
+  EXTRA_FLAGS+=(--use-4bit)
+fi
+
+uv run --python "$PYTHON_BIN" scripts/train_grpo_mistral.py \
   --model-name "$MODEL_NAME" \
   --data-dir "$DATA_DIR" \
   --output-dir "$OUTPUT_DIR" \
@@ -68,7 +87,6 @@ python3 scripts/train_grpo_mistral.py \
   --wandb-job-type "$WANDB_JOB_TYPE" \
   --wandb-tags "$WANDB_TAGS" \
   --bf16 \
-  --use-4bit \
   --per-device-batch-size 1 \
   --gradient-accumulation-steps 16 \
   --num-generations 4 \
@@ -78,4 +96,5 @@ python3 scripts/train_grpo_mistral.py \
   --num-train-epochs 1 \
   --logging-steps 10 \
   --save-steps 100 \
-  --eval-steps 100
+  --eval-steps 100 \
+  "${EXTRA_FLAGS[@]}"

@@ -34,7 +34,7 @@ REFUSAL_MARKERS = (
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Validate RL-tuned model behavior on labeled prompts")
-    parser.add_argument("--base-model", type=str, default="mistralai/Ministral-3-14B-Instruct-2512")
+    parser.add_argument("--base-model", type=str, default="mistralai/Ministral-3-3B-Instruct-2512")
     parser.add_argument("--adapter-path", type=str, default="outputs/mistral-grpo")
     parser.add_argument("--data-dir", type=str, default="datasets")
     parser.add_argument("--seed", type=int, default=42)
