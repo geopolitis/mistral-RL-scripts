@@ -89,10 +89,10 @@ uv run --python "$PYTHON_BIN" scripts/train_grpo_mistral.py \
   --bf16 \
   --per-device-batch-size 1 \
   --gradient-accumulation-steps 16 \
-  --num-generations 4 \
+  --num-generations 8 \
   --max-prompt-length 512 \
-  --max-completion-length 192 \
-  --learning-rate 5e-6 \
+  --max-completion-length 384 \
+  --learning-rate 2e-6 \
   --num-train-epochs 1 \
   --logging-steps 10 \
   --save-steps 100 \
