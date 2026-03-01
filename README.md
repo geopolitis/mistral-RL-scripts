@@ -4,6 +4,9 @@ Single-GPU RL fine-tuning (GRPO) for Mistral using the deduplicated dataset `dat
 
 Dataset summary and quality notes: [DATASET_DETAILS.md](DATASET_DETAILS.md)
 
+<img width="6688" height="3217" alt="17723750187237317213760559468051" src="https://github.com/user-attachments/assets/4a92dd79-417f-4d0b-ba17-c6e918fae6d1" />
+
+
 ## 1) Install
 
 ```bash
