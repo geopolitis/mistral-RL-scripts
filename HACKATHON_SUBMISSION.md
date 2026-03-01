@@ -82,11 +82,31 @@ Prompt engineering alone is insufficient for this task because:
 
 ### Dataset
 
-We curated 8,344 unique prompts from 15+ security research datasets:
-- **Malicious (5,227)**: prompt injection, jailbreaks, social engineering, encoding evasion, indirect injection (sources: deepset, BIPIA, CyberSecEval2, HarmBench, TensorTrust, InjecAgent, ASB)
-- **Benign (3,117)**: legitimate questions, coding tasks, knowledge queries
+We curated **8,344 unique prompts** from **19 JSON files** spanning 15+ security research datasets across **140 attack categories**.
 
-Dataset preparation included deduplication, label conflict resolution, and creation of balanced/clean splits for different training stages.
+**Label distribution**: 68.35% malicious (8,480 raw rows) / 31.65% benign (3,927 raw rows), deduplicated to 8,344 unique prompts.
+
+**Sources by size**:
+
+| Source | Rows | Type |
+|--------|-----:|------|
+| InjecAgent | 2,108 | Automated prompt injection |
+| Safeguard Test | 2,060 | Attack test suite |
+| JackHHao Jailbreak | 1,306 | Jailbreak collection |
+| AILuminate Demo | 1,200 | Mixed benchmark |
+| TensorTrust | 1,000 | Trust boundary attacks |
+| IvanLeoMK | 917 | Jailbreak variants |
+| DeepSet | 662 | Prompt injection (all) |
+| HarmBench | 400 | Harmful behaviors |
+| BIPIA | 400 | Indirect injection |
+| ASB | 400 | Attack samples |
+| Others (9 files) | ~891 | Encoding evasion, benign, CyberSecEval2, etc. |
+
+**Top attack categories**: prompt_injection (2,109), jailbreak (666), prompt_hijacking (573), prompt_extraction (427), data security harm (374), physical harm (340).
+
+**Prompt length profile**: median 20 words (128 chars), mean 63 words (364 chars), max 1,973 words -- long-tail distribution with some very large prompts that increase RL rollout time.
+
+**Data quality**: deduplication removed cross-file duplicates, 1 conflicting label resolved (same prompt mapped to both labels), label normalization across heterogeneous source formats. Balanced/clean splits created for different training stages via `scripts/prepare_datasets_v2.py`.
 
 ### Stage 1: Refusal-Only SFT
 
