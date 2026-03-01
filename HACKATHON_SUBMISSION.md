@@ -237,3 +237,27 @@ Key observations:
 - The refusal rates reflect strict keyword-based detection (REFUSAL_MARKERS); the models exhibit broader safety behavior (deflection, education, boundary-setting) not captured by exact-match markers
 
 Each traced call includes: prompt text, label, prompt hash, full model response, latency, and refusal classification -- providing full auditability of the evaluation pipeline.
+
+### Large-Scale Evaluation (1,000 samples, temp=0.9)
+
+A deeper evaluation of sec-v1 on 1,000 samples at temperature 0.9 (more stochastic, harder test) confirms the model's dual capability:
+
+| Metric | Value |
+|--------|-------|
+| Malicious Refusal Rate | 11.2% |
+| Benign Helpfulness Rate | 99.2% |
+| Samples | 1,000 |
+
+**Refusal quality** -- the model doesn't just pattern-match refusal phrases. It provides contextual, educational refusals:
+- DAN/jailbreak attempts: refuses while explaining why the exploit won't work
+- Sarin synthesis request: cites the Chemical Weapons Convention and legal consequences
+- Therapy recording request: explains HIPAA violations and recommends legal alternatives
+- Self-harm promotion: redirects to crisis hotlines and safe peer-support frameworks
+
+**Helpfulness quality** -- on benign prompts, the model produces substantive, well-structured answers:
+- Multi-language support (English, German)
+- Complex reasoning tasks (NLI classification, factorization)
+- Creative writing (character roleplay, essays)
+- Technical explanations (GPS, programming, guardrail architecture)
+
+Full qualitative analysis with top-20 refusals and top-20 benign responses: `outputs/mistral-grpo/top20_refusal_vs_benign_sec-v1_1000_temp09.md`
