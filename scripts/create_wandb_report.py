@@ -21,9 +21,9 @@ PROJECT = "mistral-rl"
 
 # Run IDs
 SFT_RUN_ID = "vj4yv9gy"
-GRPO_FROM_BASE_ID = "blnuzohg"  # GRPO without SFT init (baseline)
-GRPO_FROM_BASE_FULL_ID = "cuu1tf30"  # GRPO from base, full run (748 steps)
-GRPO_FROM_SFT_ID = "66hj3i0y"  # GRPO initialized from SFT adapter
+GRPO_FROM_BASE_ID = "cex6rpwh"  # GRPO without SFT init (v1 baseline, full run)
+GRPO_FROM_BASE_FULL_ID = "cex6rpwh"  # GRPO from base, full run
+GRPO_FROM_SFT_ID = "wehkefcs"  # GRPO initialized from SFT adapter (1,497 steps)
 
 # Colors
 COLOR_SFT = "#2ecc71"
@@ -115,11 +115,11 @@ def section_novelty() -> list:
                 "benign examples during SFT, and the model starts over-refusing benign queries -- it learns "
                 "\"when in doubt, refuse\" as a shortcut.\n\n"
                 "We deliberately excluded all benign prompts from Stage 1. The model only sees malicious "
-                "prompts paired with 24 varied refusal templates (direct, explain-why-not, redirect, firm "
+                "prompts paired with 25 varied refusal templates (direct, explain-why-not, redirect, firm "
                 "boundary, concise). It learns *when and how to refuse* -- nothing else. The base model's "
                 "natural helpfulness stays untouched.\n\n"
                 "### 2. Two-Stage Pipeline (SFT then GRPO)\n"
-                "We tried GRPO directly on the base model first (run `cuu1tf30`, 748 steps). The problem: "
+                "We tried GRPO directly on the base model first (run `cex6rpwh`). The problem: "
                 "the base model has no refusal prior, so the reward signal is sparse and noisy -- it doesn't "
                 "know *how* to refuse, so it can't discover refusal behavior through RL alone.\n\n"
                 "SFT first gives the model a strong refusal baseline. GRPO then refines the tradeoff from a "
@@ -159,8 +159,8 @@ def section_methodology() -> list:
                 "works as intended, the SFT-initialized run should converge faster and reach higher "
                 "reward. If it doesn't, the SFT stage is wasted compute.\n\n"
                 "### Stage 1 -- SFT (Refusal-Only)\n\n"
-                "- Dataset: `unique_prompts.json`, filtered to malicious samples only (~8.5K prompts)\n"
-                "- 24 refusal templates across 5 categories, deterministically assigned via md5 hash\n"
+                "- Dataset: `unique_prompts.json`, filtered to malicious samples only (5,227 prompts)\n"
+                "- 25 refusal templates across 5 categories, deterministically assigned via md5 hash\n"
                 "- Completion-only loss masking: SFTTrainer's prompt/completion columns\n"
                 "- LoRA r=32, alpha=64, all linear projections (q/k/v/o/gate/up/down)\n"
                 "- LR 5e-5, 1 epoch, batch 4 x 8 grad accum = 32 effective, warmup 0.05\n"
@@ -217,8 +217,8 @@ def section_sft() -> list:
         wr.H1(text="Stage 1: SFT Training"),
         wr.MarkdownBlock(
             text=(
-                "SFT ran for 161 steps on ~8.5K malicious-only prompts. Each prompt was paired with one of "
-                "24 refusal templates, assigned deterministically via md5 hash so it's reproducible. "
+                "SFT ran for 161 steps on 5,227 malicious-only prompts. Each prompt was paired with one of "
+                "25 refusal templates, assigned deterministically via md5 hash so it's reproducible. "
                 "Loss is computed only on the completion tokens -- the prompt is masked out.\n\n"
                 "The training loss curve should drop steeply in the first ~30 steps and plateau. "
                 "A loss that keeps dropping toward zero would indicate memorization rather than generalization.\n\n"
@@ -349,10 +349,10 @@ def section_comparison() -> list:
                 "This is the section that answers the question: **does SFT actually help GRPO?**\n\n"
                 "Two GRPO runs, same reward function, same dataset (`unique_prompts_balanced.json`), "
                 "different starting points:\n\n"
-                "- **GRPO from base** (orange, `cuu1tf30`): RL applied directly to the unmodified base model. "
-                "Ran for 748 steps.\n"
-                "- **GRPO from SFT** (blue, `66hj3i0y`): RL applied to the SFT checkpoint. "
-                "Still running.\n\n"
+                "- **GRPO from base** (orange, `cex6rpwh`): RL applied directly to the unmodified base model. "
+                "Full run.\n"
+                "- **GRPO from SFT** (blue, `wehkefcs`): RL applied to the SFT checkpoint. "
+                "1,497 steps.\n\n"
                 "If the two-stage hypothesis is correct, the blue line should converge faster and reach "
                 "higher reward -- the SFT stage gave it a head start on refusal behavior, so GRPO has "
                 "less to learn. If the lines look the same, SFT was wasted compute.\n"

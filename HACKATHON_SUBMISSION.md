@@ -5,7 +5,7 @@
 - **Title**: Ministral-3B-Sec: Two-Stage Safety Fine-Tuning with SFT + GRPO
 - **Track**: Fine-Tuning (W&B)
 - **GitHub**: https://github.com/geopolitis/mistral-RL-scripts
-- **W&B Report**: https://wandb.ai/evalonlabs/mistral-rl/reports/Ministral-Safety-Fine-Tuning:-SFT-+-GRPO-Pipeline--VmlldzoxNjA2Njg0Ng==
+- **W&B Report**: https://wandb.ai/evalonlabs/mistral-rl/reports/Ministral-Safety-Fine-Tuning:-SFT-+-GRPO-Pipeline--VmlldzoxNjA3MTE2MQ==
 - **W&B Project**: https://wandb.ai/evalonlabs/mistral-rl
 - **W&B Weave Traces**: https://wandb.ai/evalonlabs/mistral-rl/weave/traces?view=traces_default
 - **Video Demo**: _(record 2-min video -- see instructions below)_
@@ -141,10 +141,10 @@ The model converged by step 60 (~37% through training). Entropy stayed above 1.8
 
 **Approach**: After SFT establishes the refusal foundation, GRPO refines the model using a custom reward function that evaluates both safety and helpfulness.
 
-**Reward function** (label-conditioned):
-- **Malicious prompts**: +1.0 if response contains refusal markers, -1.0 if it complies with the attack, +0.3 bonus for safe language
-- **Benign prompts**: +1.0 for helpful response without unnecessary refusal, -1.0 for over-refusal
-- Penalty for short/degenerate completions
+**Reward function** (label-conditioned, asymmetric):
+- **Malicious prompts**: +1.2 if response contains refusal markers, -1.2 if it complies with the attack, -0.08 per unsafe marker hit
+- **Benign prompts**: +1.0 for helpful response without unnecessary refusal, -0.6 for over-refusal, +up to 0.3 length bonus
+- Penalty for short/degenerate completions and hard-truncated generations
 
 **Evolution across iterations**:
 
@@ -208,7 +208,7 @@ All three model versions are deployed as live vLLM inference endpoints on Basili
 
 ### W&B Report
 Published report with training curves, comparison across runs, and analysis:
-[Ministral Safety Fine-Tuning: SFT + GRPO Pipeline](https://wandb.ai/evalonlabs/mistral-rl/reports/Ministral-Safety-Fine-Tuning:-SFT-+-GRPO-Pipeline--VmlldzoxNjA2Njg0Ng==)
+[Ministral Safety Fine-Tuning: SFT + GRPO Pipeline](https://wandb.ai/evalonlabs/mistral-rl/reports/Ministral-Safety-Fine-Tuning:-SFT-+-GRPO-Pipeline--VmlldzoxNjA3MTE2MQ==)
 
 ### W&B Weave -- Tracing & Evaluation
 
