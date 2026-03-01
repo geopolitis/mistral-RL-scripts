@@ -1,0 +1,25 @@
+version = 1
+revision = 1
+requires-python = ">=3.10"
+
+[[package]]
+name = "basilica-sdk"
+version = "0.24.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/8c/78/1704081f4fb6f3033adae233b46764d5dfab5d8f474db713a982a0b3f299/basilica_sdk-0.24.0.tar.gz", hash = "sha256:b9a1295d6e9c746b79353e85c96e989e146aac7b2f19affc8e969355569b9631", size = 728438 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/0e/e8/253c50c92724d2c3c1505f26ab976d6bcf6590bfc15ab594203cc73514b9/basilica_sdk-0.24.0-cp310-abi3-macosx_10_12_x86_64.whl", hash = "sha256:a7dec1d39f701b89fa2cb1a96f91abcac91a2bc9eb547460e42fe2a21800618f", size = 4290040 },
+    { url = "https://files.pythonhosted.org/packages/46/07/fcd4faf1ddd530e50aa08a26a1eaa7b5addced18c1fa73d74e7c8bc92a98/basilica_sdk-0.24.0-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:88d0576bc2372216dc8969584aac7024ad30649a6225b495dc143c06c2def90e", size = 3507290 },
+    { url = "https://files.pythonhosted.org/packages/7a/03/cae9a43367517a74e9706d7fad1e751aa63d7e9fdbc9091ea0ac8b1ce3b0/basilica_sdk-0.24.0-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:8b109a1f576615306cc5f4033df1ecd360789b939af17210af0599385cc6b1a4", size = 5427046 },
+]
+
+[[package]]
+name = "mistral-rl-deployment"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "basilica-sdk" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "basilica-sdk", specifier = ">=0.20.0" }]
