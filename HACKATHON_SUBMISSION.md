@@ -80,7 +80,7 @@ Prompt engineering alone is insufficient for this task because:
      (refusal foundation)          (balanced safety+helpfulness)
 ```
 
-<img width="7091" height="5079" alt="17723749628673185611601821140299" src="https://github.com/user-attachments/assets/72461dc1-97a6-42ac-9d1a-e96cbc6b5804" />
+<img width="6688" height="3217" alt="17723750187237317213760559468051" src="https://github.com/user-attachments/assets/5ecdb93b-db08-4591-8031-cca7eee641ef" />
 
 
 ### Dataset
