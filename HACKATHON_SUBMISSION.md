@@ -80,6 +80,9 @@ Prompt engineering alone is insufficient for this task because:
      (refusal foundation)          (balanced safety+helpfulness)
 ```
 
+<img width="7091" height="5079" alt="17723749628673185611601821140299" src="https://github.com/user-attachments/assets/72461dc1-97a6-42ac-9d1a-e96cbc6b5804" />
+
+
 ### Dataset
 
 We curated **8,344 unique prompts** from **19 JSON files** spanning 15+ security research datasets across **140 attack categories**.
