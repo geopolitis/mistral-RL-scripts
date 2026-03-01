@@ -1,5 +1,7 @@
 # mistral-RL-scripts
 
+This repository was create for Mistral Hackathon 2026 in London.
+
 Single-GPU RL fine-tuning (GRPO) for Mistral using the deduplicated dataset `datasets/unique_prompts_balanced.json` by default (or any JSON dataset path).
 
 Dataset summary and quality notes: [DATASET_DETAILS.md](DATASET_DETAILS.md)
