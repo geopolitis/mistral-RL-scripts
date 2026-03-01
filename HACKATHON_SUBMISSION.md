@@ -7,6 +7,7 @@
 - **GitHub**: https://github.com/geopolitis/mistral-RL-scripts
 - **W&B Report**: https://wandb.ai/evalonlabs/mistral-rl/reports/Ministral-Safety-Fine-Tuning:-SFT-+-GRPO-Pipeline--VmlldzoxNjA2Njg0Ng==
 - **W&B Project**: https://wandb.ai/evalonlabs/mistral-rl
+- **W&B Weave Traces**: https://wandb.ai/evalonlabs/mistral-rl/weave/traces?view=traces_default
 - **Video Demo**: _(record 2-min video -- see instructions below)_
 
 ### HuggingFace Models
@@ -185,3 +186,31 @@ All three model versions are deployed as live vLLM inference endpoints on Basili
 ### W&B Report
 Published report with training curves, comparison across runs, and analysis:
 [Ministral Safety Fine-Tuning: SFT + GRPO Pipeline](https://wandb.ai/evalonlabs/mistral-rl/reports/Ministral-Safety-Fine-Tuning:-SFT-+-GRPO-Pipeline--VmlldzoxNjA2Njg0Ng==)
+
+### W&B Weave -- Tracing & Evaluation
+
+All three deployed models are evaluated end-to-end via W&B Weave with traced inference calls against the eval dataset.
+
+**Weave Traces Dashboard**: [evalonlabs/mistral-rl/weave/traces](https://wandb.ai/evalonlabs/mistral-rl/weave/traces?view=traces_default)
+
+**Trace Stats**:
+- 500+ traced inference calls across 3 model versions
+- 3 evaluation summary traces (one per model)
+- Operations: `traced_remote_call` (individual inference), `traced_eval_summary` (aggregate scores)
+- Mean inference latency: 1,620ms (range: 360ms - 2,002ms)
+
+**Evaluation Results** (122 eval samples per model, malicious + benign):
+
+| Model | Malicious Refusal Rate | Benign Helpfulness Rate | Balanced Score |
+|-------|----------------------|------------------------|----------------|
+| sec-v1 (GRPO-only) | 9.2% | 100% | 54.6% |
+| sec-v2-sft (SFT) | 12.3% | 100% | 56.2% |
+| sec-v2-grpo (SFT+GRPO) | 7.7% | 100% | 53.8% |
+
+Key observations:
+- **100% benign helpfulness** across all models -- none over-refuse legitimate queries
+- **sec-v2-sft has the highest refusal rate** (12.3%) -- SFT directly teaches refusal patterns
+- **sec-v2-grpo** shows lower refusal rate (7.7%) after GRPO, which trades some refusal for more nuanced responses. The model learned to address dangerous requests by explaining why they're problematic rather than issuing a flat refusal -- a behavior that the marker-based refusal detector doesn't capture but represents a more sophisticated safety posture
+- The refusal rates reflect strict keyword-based detection (REFUSAL_MARKERS); the models exhibit broader safety behavior (deflection, education, boundary-setting) not captured by exact-match markers
+
+Each traced call includes: prompt text, label, prompt hash, full model response, latency, and refusal classification -- providing full auditability of the evaluation pipeline.
